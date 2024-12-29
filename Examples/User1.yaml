@@ -1,0 +1,22 @@
+UserView: &UserViewAnchor
+  id: string               # Unique identifier for the user
+  name: 
+    firstName: string      # User's first name
+    lastName: string       # User's last name
+  email: string            # User's email address
+  isActive: boolean        # Whether the user is active
+  roles:                   # List of roles assigned to the user
+    - string
+  profile:
+    age: integer           # User's age
+    address: 
+      street: string       # Street address
+      city: string         # City
+      state: string        # State
+      postalCode: string   # Postal code
+  lastLogin: string        # ISO 8601 formatted timestamp of last login
+  metadata:                # Additional metadata about the user
+    createdAt: string      # ISO 8601 formatted timestamp of user creation
+    updatedAt: string      # ISO 8601 formatted timestamp of last update
+
+GuestView: *UserViewAnchor
