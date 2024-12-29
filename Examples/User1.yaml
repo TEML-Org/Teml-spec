@@ -1,3 +1,4 @@
+# Define a UserView using an anchor(&UserViewAnchor), so you can then reference it later using an alias (*UserViewAnchor)
 UserView: &UserViewAnchor
   id: string               # Unique identifier for the user
   name: 
