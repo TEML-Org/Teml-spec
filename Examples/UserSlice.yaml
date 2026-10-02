@@ -5,6 +5,7 @@ aggs:
     id: g
     firstName: s
     lastName: s
+    age: int
 
 # Views
 views:
@@ -12,6 +13,7 @@ views:
     id: g
     firstName: s
     lastName: s
+    age: int
 
 # Slices
 slices:
@@ -20,11 +22,11 @@ slices:
       command:
         name: AddUser # The command name is optional since by default it will match the name of the Slice
       event:
-        name: AddedUsed # The event name should be the past tense of the command
+        name: AddedUser # The event name should be the past tense of the command
         props:
           id: g
           firstName: s
-          lastName:
+          lastName: s
       views:
         - *UserView
 
@@ -41,7 +43,7 @@ slices:
           id: x
           firstName: x
 
-  - ReAgeUser: # In this slice we don't have a command specified. The command is inferred and will be named after the slice ('RenameUser' in this case)
+  - ReAgeUser: # In this slice we don't have a command specified. The command is inferred and will be named after the slice ('ReAgeUser' in this case)
       story: 'https://www.example.com/12345'
       status: InDev
       agg: *User
@@ -53,4 +55,4 @@ slices:
       views:
         - << : *UserView
           id: x
-          age: in
+          age: int
