@@ -169,21 +169,22 @@ The anchor name (`User`) and the element name (`UserAgg`) **MAY** differ. A name
 
 ### 5.1 Merged references (views only)
 
-Within a slice's `views` list, an item **MAY** merge a view and mark the properties the slice touches with the value `x`:
+Within a slice's `views` list, an item **MAY** merge a view and list the properties the slice touches. Each listed property's value is either the marker `x` or the property's type:
 
 ```yaml
 views:
   - <<: *UserView
     id: x
-    firstName: x
+    age: int
 ```
 
-This means "this slice updates `UserView`, specifically `id` and `firstName`". See §10.4.
+This means "this slice updates `UserView`, specifically `id` and `age` (an `int`)". See §10.4.
 
 ### 5.2 Processor rules
 
 - Processors **MUST** resolve an alias to the definition whose body carries the matching anchor. They **MUST** do this by node identity or by the anchor name, never by comparing values: two aggregates with identical properties are still different aggregates.
 - For a merged view reference, processors **MUST** identify the view from the alias given to `<<`.
+- For a merged view reference, processors **MUST** determine the touched properties from the keys written in the item itself, at the YAML node level, not from the merged result. After merging, an override such as `age: int` looks the same as the `age: int` inherited from the view.
 - Processors **MUST NOT** treat a property whose value is `x` as a type.
 
 > **Implementation note.** Most YAML libraries can preserve aliases. For example, `yaml` (JavaScript) via `parseDocument`, `ruamel.yaml` (Python), and `gopkg.in/yaml.v3` via `yaml.Node`. With libraries that expand aliases into shared objects, the alias and the definition are the same object, which also satisfies the node-identity rule.
@@ -416,12 +417,12 @@ Each item of a slice's `views` list is one of:
 |---|---|---|
 | alias | `- *UserView` | This slice updates `UserView`; which properties is not specified. |
 | name | `- UserView` | Same as above, by name. |
-| merged alias with markers | `- <<: *UserView`<br>`  firstName: x` | This slice updates `UserView`, touching the properties marked `x`. |
+| merged alias with overrides | `- <<: *UserView`<br>`  firstName: x`<br>`  age: int` | This slice updates `UserView`, touching the properties listed in the item. |
 
 In the merged form:
 
-- each marked key **MUST** be a property of the view;
-- the marker value **MUST** be `x`. Overriding a property with a type is an error in compliant documents.
+- each listed key **MUST** be a property of the view;
+- each value **MUST** be either `x` (touched, type as in the view) or a type expression equal to the view's type for that property (touched, with its type restated). The type form is useful when reading the slice on its own. A type that differs from the view's type is an error in compliant documents.
 
 "Touched" covers both properties the event sets and properties used to find the view record, such as `id`.
 
@@ -484,7 +485,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - E3 A reference (alias or name) does not resolve to an element of the expected kind.
 - E4 A property is untyped, or a type expression names an unknown type.
 - E5 A slice has no `event` (or `events`), or has both.
-- E6 A merged view reference marks a property the view does not have, or uses a value other than `x`.
+- E6 A merged view reference lists a property the view does not have, or gives it a type different from the view's type.
 - E7 A spec instance names an unknown command or event, or a property it does not define.
 
 **Warnings**

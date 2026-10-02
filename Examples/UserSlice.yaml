@@ -55,4 +55,4 @@ slices:
       views:
         - << : *UserView
           id: x
-          age: x
+          age: int

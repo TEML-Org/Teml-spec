@@ -106,7 +106,7 @@ slices:
       views:
         - <<: *UserView
           id: x
-          age: x
+          age: int
 
   # Automation: the WelcomeEmailer WFE issues this slice's command.
   - SendWelcomeEmail:
