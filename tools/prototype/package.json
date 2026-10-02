@@ -6,7 +6,7 @@
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
-    "validate": "node validate.mjs ../../schema/teml-alpha-001.schema.json ../../Examples/user-compliant.teml.yaml ../../Examples/hotel.teml.yaml",
+    "validate": "node validate.mjs ../../schema/teml-alpha-002.schema.json ../../Examples/user-compliant.teml.yaml ../../Examples/hotel.teml.yaml",
     "check": "node check.mjs ../../Examples/*.yaml",
     "board": "mkdir -p out && node build-board.mjs ../../Examples/hotel.teml.yaml out/hotel-board.html"
   },

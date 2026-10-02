@@ -61,6 +61,7 @@
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .sw { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
   .sw.screen { background: var(--screen); border: 1px solid var(--screen-edge); }
+  .sw.ext { background: var(--board); border: 1.5px dashed var(--evt); }
   .sw.wfe { background: var(--wfe); } .sw.cmd { background: var(--cmd); } .sw.view { background: var(--view); } .sw.evt { background: var(--evt); }
   .zoom { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
   .zoom button { font: 500 13px var(--sans); color: var(--ink); background: none; border: 0; padding: 6px 12px; cursor: pointer; }
@@ -82,6 +83,7 @@
   .col-head .meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); }
   .col-head:hover .sn { text-decoration: underline; text-underline-offset: 3px; }
   .col-head.sel .sn { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .col-head .viewtag { font: 600 10px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 6px; border-radius: 3px; background: var(--view); color: var(--note-ink); }
   .divider { position: absolute; top: 0; width: 0; border-left: 1px dashed var(--line); z-index: 0; }
 
   .chip { font: 600 10px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 6px; border-radius: 99px; white-space: nowrap; }
@@ -96,6 +98,7 @@
   .note.cmd { background: var(--cmd); } .note.evt { background: var(--evt); } .note.view { background: var(--view); } .note.wfe { background: var(--wfe); }
   .note.screen { background: var(--screen); border: 1px solid var(--screen-edge); }
   .note.screen::after { content: ""; position: absolute; left: 8px; right: 8px; top: 5px; height: 3px; border-radius: 2px; background: var(--screen-edge); opacity: .35; }
+  .note.ext { background: color-mix(in srgb, var(--evt) 35%, var(--board)); border: 1.5px dashed var(--evt); color: var(--ink); }
   .note.inferred { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,.35) 6px 8px); }
   .note:hover { transform: translateY(-1px); box-shadow: 0 2px 0 rgba(0,0,0,.08), 0 6px 14px rgba(0,0,0,.14); }
   .board.focusing .note:not(.sel):not(.linked) { opacity: .45; }
@@ -113,6 +116,7 @@
   .panel h3 { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 6px; }
   .kind { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 7px; border-radius: 3px; color: var(--note-ink); }
   .kind.cmd { background: var(--cmd); } .kind.evt { background: var(--evt); } .kind.view { background: var(--view); } .kind.wfe { background: var(--wfe); }
+  .kind.ext { border: 1.5px dashed var(--evt); color: var(--ink); }
   .kind.screen { background: var(--screen); border: 1px solid var(--screen-edge); } .kind.slice { background: var(--label-bg); color: var(--ink); border: 1px solid var(--line); }
   .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 14px; margin: 0; }
   .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
@@ -132,14 +136,10 @@
   .insts { display: flex; flex-wrap: wrap; gap: 6px; }
   .inst { font: 12px/1.45 var(--mono); padding: 2px 7px; border-radius: 3px; color: var(--note-ink); overflow-wrap: anywhere; }
   .inst b { font-weight: 500; }
-  .inst.evt { background: var(--evt); } .inst.cmd { background: var(--cmd); }
+  .inst.evt { background: var(--evt); } .inst.view { background: var(--view); } .inst.cmd { background: var(--cmd); }
   .inst.err { background: none; color: var(--err); border: 1px solid var(--err); }
   .inst.none { background: none; color: var(--muted); border: 1px dashed var(--line); }
 
-  .gaps { display: grid; gap: 10px; }
-  .gaps h2 { font: 700 22px/1.15 var(--cond); margin: 0; }
-  .gaps p { margin: 0; max-width: 72ch; color: var(--muted); }
-  .gaps ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 80ch; }
   details.src summary { cursor: pointer; font-weight: 600; }
   details.src pre { margin: 12px 0 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 70vh; font: 12.5px/1.55 var(--mono); }
   @media (prefers-reduced-motion: reduce) { .note { transition: none; } }
@@ -160,7 +160,8 @@
       <span><i class="sw cmd"></i>Command</span>
       <span><i class="sw view"></i>Read model</span>
       <span><i class="sw evt"></i>Event</span>
-      <span class="muted">Dashed arrow: event triggers an automation</span>
+      <span><i class="sw ext"></i>External event</span>
+      <span class="muted">Dashed arrow: an event triggers an automation</span>
     </div>
     <div class="zoom" role="group" aria-label="Zoom">
       <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
@@ -173,18 +174,6 @@
   <div class="scroller" id="scroller"><div class="board" id="board"></div></div>
 
   <section class="detail" id="detail" aria-live="polite"></section>
-
-  <section class="gaps">
-    <h2>What the board can't show yet</h2>
-    <p>Everything above is drawn from the TEML file alone. These parts of a full hotel Event Model have no place in <code>teml.org/v-alpha-001</code>, so they are missing from the board:</p>
-    <ol>
-      <li><b>The "browse rooms" step.</b> A view-only slice, where the guest sees Room Availability before booking. Every TEML slice needs an event.</li>
-      <li><b>Who uses each screen.</b> Guest, manager, front desk and housekeeping should be separate lanes at the top. TEML has no actors, so all screens share one lane.</li>
-      <li><b>Which screen shows which read model.</b> For example, Room Search shows Room Availability.</li>
-      <li><b>The payment provider's "payment succeeded" event.</b> It can't be declared, so Payment Listener appears with nothing triggering it.</li>
-      <li><b>Which read model an automation works from.</b> Payment Requester's to-do list is Payments To Request.</li>
-    </ol>
-  </section>
 
   <details class="src">
     <summary id="srcSummary">TEML source</summary>
@@ -203,60 +192,92 @@ const TYPE_NAMES = { g: "unique identifier", guid: "unique identifier", uuid: "u
   datetime: "date and time", timestamp: "date and time", dur: "duration", duration: "duration", uri: "URI", url: "URI", any: "unspecified" };
 const GEAR = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.4 1l.4 1.9c.4.1.8.3 1.1.5l1.7-1 1.4 1.4-1 1.7c.2.3.4.7.5 1.1l1.9.4v2l-1.9.4c-.1.4-.3.8-.5 1.1l1 1.7-1.4 1.4-1.7-1c-.3.2-.7.4-1.1.5L9.4 15h-2l-.4-1.9c-.4-.1-.8-.3-1.1-.5l-1.7 1-1.4-1.4 1-1.7c-.2-.3-.4-.7-.5-1.1L1.6 9V7l1.9-.4c.1-.4.3-.8.5-1.1l-1-1.7 1.4-1.4 1.7 1c.3-.2.7-.4 1.1-.5L7.6 1h1.8zM8.5 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const spaced = n => n.replace(/([a-z])([A-Z])/g, "$1 $2");
+const spaced = n => String(n).replace(/([a-z])([A-Z])/g, "$1 $2");
+const changes = M.slices.filter(s => s.kind === "change"), viewSlices = M.slices.filter(s => s.kind === "view");
 
 // ---------- header ----------
 document.getElementById("eyebrow").textContent = `${M.file} · ${M.apiVersion}`;
 document.getElementById("title").textContent = `${M.metadata.name} event model`;
 document.getElementById("lede").textContent = M.metadata.description ?? "";
-const nEvents = M.slices.reduce((a, s) => a + s.events.length, 0);
+const nEvents = changes.reduce((a, s) => a + s.events.length, 0);
+const nExt = M.systems.reduce((a, s) => a + s.events.length, 0);
 const nSpecs = M.slices.reduce((a, s) => a + s.specs.length, 0);
 document.getElementById("facts").innerHTML = [
-  [M.slices.length, "slices"], [nEvents, "events"], [M.aggs.length, "aggregates"], [M.views.length, "read models"],
-  [M.wfes.length, "automations"], [nSpecs, "specs"]].map(([n, l]) => `<span><b>${n}</b> ${l}</span>`).join("");
+  [changes.length, "change slices"], [viewSlices.length, "view slices"], [nEvents, "events"], [nExt, "external events"],
+  [M.actors.length, "actors"], [M.aggs.length, "aggregates"], [M.views.length, "read models"], [M.wfes.length, "automations"], [nSpecs, "specs"]]
+  .filter(([n]) => n > 0).map(([n, l]) => `<span><b>${n}</b> ${l}</span>`).join("");
 document.getElementById("src").textContent = M.source;
 document.getElementById("srcSummary").textContent = `TEML source (${M.file})`;
 
-// ---------- layout ----------
+// ---------- placement: every note gets a lane and a sub-column, then stacks ----------
+const screenActor = new Map(M.screens.map(s => [s.name, s.actor]));
+const actorLane = name => (screenActor.get(name) ? "actor:" + screenActor.get(name) : "screens");
+const extByWfe = new Map();      // WFE name -> external events that trigger it
+M.systems.forEach(sys => sys.events.forEach(e => e.wfes.forEach(w => {
+  if (!extByWfe.has(w)) extByWfe.set(w, []);
+  extByWfe.get(w).push({ ...e, system: sys.name });
+})));
+const placedExt = new Set();
+const notes = [], edges = [];
+const cols = M.slices.map(() => new Map());   // per column: "lane|sub" -> stack count
+const put = (n, lane, sub) => {
+  const key = lane + "|" + sub, c = cols[n.slice];
+  n.lane = lane; n.sub = sub; n.row = c.get(key) ?? 0; c.set(key, n.row + 1);
+  notes.push(n); return n;
+};
+M.slices.forEach((s, i) => {
+  if (s.kind === "view") {
+    const v = put({ id: `view:${s.name}:${s.view}`, kind: "view", name: s.view, slice: i, ref: { name: s.view, touched: [] } }, "mid", 0);
+    s.readBy.forEach((r, k) => {
+      const lane = r.kind === "wfe" ? "wfe" : actorLane(r.name);
+      const n = put({ id: `read:${s.name}:${k}`, kind: r.kind, name: r.name, slice: i }, lane, 0);
+      edges.push({ a: v, b: n, t: "read" });
+    });
+    return;
+  }
+  let trig = null;
+  if (s.trigger) trig = put({ id: `trig:${s.name}`, kind: s.trigger.kind, name: s.trigger.name, slice: i }, s.trigger.kind === "wfe" ? "wfe" : actorLane(s.trigger.name), 0);
+  const cmd = put({ id: `cmd:${s.name}`, kind: "cmd", name: s.command.name, slice: i, inferred: s.command.inferred }, "mid", 0);
+  if (trig) edges.push({ a: trig, b: cmd, t: "down" });
+  const evs = s.events.map(e => put({ id: `evt:${e.name}`, kind: "evt", name: e.name, slice: i, ev: e }, "agg:" + s.agg, 0));
+  evs.forEach(e => edges.push({ a: cmd, b: e, t: "down" }));
+  const vs = s.views.map(v => put({ id: `view:${s.name}:${v.name}`, kind: "view", name: v.name, slice: i, ref: v }, "mid", 1));
+  evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
+  // An external event is drawn in the column of the first slice its WFE issues a command in.
+  if (trig?.kind === "wfe") for (const x of extByWfe.get(trig.name) ?? []) {
+    if (placedExt.has(x.name)) continue;
+    placedExt.add(x.name);
+    const n = put({ id: `ext:${x.name}`, kind: "ext", name: x.name, slice: i, ev: x }, "sys:" + x.system, 0);
+    edges.push({ a: n, b: trig, t: "ext" });
+  }
+});
+// Event -> WFE it triggers: the first sticky for that WFE later on the timeline
+M.slices.forEach((s, i) => s.kind === "change" && s.wfes.forEach(w => {
+  const target = notes.find(n => n.kind === "wfe" && n.name === w && n.slice > i) ?? notes.find(n => n.kind === "wfe" && n.name === w);
+  if (target) notes.filter(n => n.kind === "evt" && n.slice === i).forEach(e => edges.push({ a: e, b: target, t: "trig" }));
+}));
+
+// ---------- lanes ----------
+const laneIds = new Set(notes.map(n => n.lane)); laneIds.add("mid");
 const lanes = [];
-const used = k => M.slices.some(s => s.trigger?.kind === k);
-if (used("screen")) lanes.push({ id: "screen", label: "Screens", sub: "User interface", rows: 1 });
-if (used("wfe")) lanes.push({ id: "wfe", label: "Automations", sub: "Workflow engines", rows: 1 });
-lanes.push({ id: "mid", label: "Commands & read models", sub: "", rows: Math.max(1, ...M.slices.map(s => s.views.length)) });
-const aggOrder = M.aggs.map(a => a.name).filter(a => M.slices.some(s => s.agg === a));
-if (M.slices.some(s => !s.agg)) aggOrder.push(null);
-for (const a of aggOrder) {
-  const rows = Math.max(1, ...M.slices.filter(s => s.agg === a).map(s => s.events.length));
-  lanes.push({ id: "agg:" + a, label: a ?? "No aggregate", sub: "Events", rows });
-}
+const rowsOf = id => Math.max(1, ...cols.flatMap(c => [...c].filter(([k]) => k.startsWith(id + "|")).map(([, v]) => v)));
+const addLane = (id, label, sub) => laneIds.has(id) && lanes.push({ id, label, sub, rows: rowsOf(id) });
+M.actors.forEach(a => addLane("actor:" + a.name, spaced(a.name), "Actor"));
+addLane("screens", "Screens", M.actors.length ? "No actor" : "User interface");
+addLane("wfe", "Automations", "Workflow engines");
+addLane("mid", "Commands & read models", "");
+M.aggs.forEach(a => addLane("agg:" + a.name, a.name, "Events"));
+addLane("agg:null", "No aggregate", "Events");
+M.systems.forEach(s => addLane("sys:" + s.name, spaced(s.name), "External system"));
 let y = HEAD_H;
 for (const l of lanes) { l.y = y; l.h = l.rows * (NOTE_H + GAP) - GAP + PAD * 2; y += l.h; }
 const W = LABEL_W + M.slices.length * COL_W + 16, H = y;
-const laneOf = id => lanes.find(l => l.id === id);
-
-const notes = [], edges = [];
-const addNote = n => (notes.push(n), n);
-M.slices.forEach((s, i) => {
-  const x0 = LABEL_W + i * COL_W + 22, x1 = x0 + NOTE_W + SUB_GAP;
-  const mid = laneOf("mid"), ev = laneOf("agg:" + s.agg);
-  let trig = null;
-  if (s.trigger) {
-    const l = laneOf(s.trigger.kind);
-    trig = addNote({ id: `trig:${s.name}`, kind: s.trigger.kind, name: s.trigger.name, slice: i, x: x0, y: l.y + PAD });
-  }
-  const cmd = addNote({ id: `cmd:${s.name}`, kind: "cmd", name: s.command.name, slice: i, x: x0, y: mid.y + PAD, inferred: s.command.inferred });
-  if (trig) edges.push({ a: trig, b: cmd, t: "down" });
-  const evs = s.events.map((e, k) => addNote({ id: `evt:${e.name}`, kind: "evt", name: e.name, slice: i, x: x0, y: ev.y + PAD + k * (NOTE_H + GAP), ev: e }));
-  evs.forEach(e => edges.push({ a: cmd, b: e, t: "down" }));
-  const vs = s.views.map((v, k) => addNote({ id: `view:${s.name}:${v.name}`, kind: "view", name: v.name, slice: i, x: x1, y: mid.y + PAD + k * (NOTE_H + GAP), ref: v }));
-  evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
+const laneY = new Map(lanes.map(l => [l.id, l.y]));
+notes.forEach(n => {
+  const x0 = LABEL_W + n.slice * COL_W + 22;
+  n.x = n.sub ? x0 + NOTE_W + SUB_GAP : x0;
+  n.y = laneY.get(n.lane) + PAD + n.row * (NOTE_H + GAP);
 });
-// event -> automation it triggers (first later slice issued by that WFE)
-M.slices.forEach((s, i) => s.wfes.forEach(w => {
-  const target = notes.find(n => n.kind === "wfe" && n.name === w && n.slice > i) ?? notes.find(n => n.kind === "wfe" && n.name === w);
-  if (!target) return;
-  notes.filter(n => n.kind === "evt" && n.slice === i).forEach(e => edges.push({ a: e, b: target, t: "trig" }));
-}));
 
 function path(e) {
   const a = e.a, b = e.b;
@@ -264,9 +285,17 @@ function path(e) {
     const x1 = a.x + NOTE_W / 2, y1 = a.y + NOTE_H, x2 = b.x + NOTE_W / 2, y2 = b.y - 3, d = Math.max(16, (y2 - y1) / 2);
     return `M${x1},${y1} C${x1},${y1 + d} ${x2},${y2 - d} ${x2},${y2}`;
   }
+  if (e.t === "read") {   // view (below) -> reader (above)
+    const x1 = a.x + NOTE_W / 2, y1 = a.y, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3, d = Math.max(16, (y1 - y2) / 2);
+    return `M${x1},${y1} C${x1},${y1 - d} ${x2},${y2 + d} ${x2},${y2}`;
+  }
   if (e.t === "up") {
     const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 2, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3;
     return `M${x1},${y1} C${x2},${y1} ${x2},${y1 + (y2 - y1) * 0.35} ${x2},${y2}`;
+  }
+  if (e.t === "ext" && a.slice === b.slice) {   // external event (bottom) -> WFE (top), around the column's left edge
+    const x = a.x, y1 = a.y + NOTE_H / 2, y2 = b.y + NOTE_H / 2;
+    return `M${x},${y1} C${x - 40},${y1} ${x - 40},${y2} ${x - 3},${y2}`;
   }
   const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 3, x2 = b.x - 3, y2 = b.y + NOTE_H / 2;
   return `M${x1},${y1} C${x1 + 120},${y1} ${x2 - 120},${y2} ${x2},${y2}`;
@@ -284,9 +313,10 @@ M.slices.forEach((s, i) => {
   if (i > 0) html += `<div class="divider" style="left:${x}px;height:${H}px"></div>`;
   const st = s.status ? `<span class="chip ${["Completed", "InDev"].includes(s.status) ? s.status : "other"}">${esc(s.status === "InDev" ? "In dev" : s.status)}</span>` : "";
   const sp = s.specs.length ? `<span>${s.specs.length} spec${s.specs.length > 1 ? "s" : ""}</span>` : "";
-  html += `<button type="button" class="col-head" data-id="slice:${esc(s.name)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${st}${sp}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
+  const kind = s.kind === "view" ? `<span class="viewtag">View</span>` : "";
+  html += `<button type="button" class="col-head" data-id="slice:${esc(s.name)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${kind}${st}${sp}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
 });
-const KIND = { screen: "Screen", wfe: "Automation", cmd: "Command", view: "Read model", evt: "Event" };
+const KIND = { screen: "Screen", wfe: "Automation", cmd: "Command", view: "Read model", evt: "Event", ext: "External event" };
 notes.forEach(n => {
   const k = n.kind === "wfe" ? `${GEAR}${KIND.wfe}` : n.inferred ? "Command · inferred" : KIND[n.kind];
   html += `<button type="button" class="note ${n.kind}${n.inferred ? " inferred" : ""}" data-id="${esc(n.id)}" data-slice="${n.slice}" style="left:${n.x}px;top:${n.y}px;width:${NOTE_W}px;height:${NOTE_H}px"><span class="k">${k}</span><span class="nm">${esc(spaced(n.name))}</span></button>`;
@@ -294,7 +324,7 @@ notes.forEach(n => {
 html += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
   <marker id="arrowHot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
-  ${edges.map((e, i) => `<path class="edge ${e.t === "trig" ? "trig" : ""}" data-e="${i}" d="${path(e)}" marker-end="url(#arrow)"/>`).join("")}</svg>`;
+  ${edges.map((e, i) => `<path class="edge ${e.t === "trig" || e.t === "ext" ? "trig" : ""}" data-e="${i}" d="${path(e)}" marker-end="url(#arrow)"/>`).join("")}</svg>`;
 board.innerHTML = html;
 
 // ---------- zoom ----------
@@ -308,6 +338,7 @@ setZoom(window.innerWidth < 700 ? 0.6 : 0.8);
 // ---------- details ----------
 const viewDef = n => M.views.find(v => v.name === n)?.body;
 const wfeDef = n => M.wfes.find(v => v.name === n)?.body;
+const screenDef = n => M.screens.find(s => s.name === n);
 
 function propsHtml(p, touched) {
   if (!p) return `<p class="muted" style="margin:0">Not specified.</p>`;
@@ -326,27 +357,35 @@ function propsHtml(p, touched) {
   };
   return `<ul class="props">${Object.entries(p).map(([k, v]) => line(k, v)).join("")}</ul>`;
 }
-const allEvents = new Map(); M.slices.forEach(s => s.events.forEach(e => allEvents.set(e.name, s)));
-const allCmds = new Map(M.slices.map(s => [s.command.name, s]));
+const allEvents = new Set([...changes.flatMap(s => s.events.map(e => e.name)), ...M.systems.flatMap(s => s.events.map(e => e.name))]);
+const allCmds = new Set(changes.map(s => s.command.name)), allViews = new Set(M.views.map(v => v.name));
+const val = v => Array.isArray(v) ? `[${v.map(val).join(", ")}]`
+  : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${k}: ${val(x)}`).join(", ")} }` : String(v);
 function inst(o) {
   const [n, data] = Object.entries(o)[0];
   if (n === "error") return `<span class="inst err">error: <b>${esc(data)}</b></span>`;
-  const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : "";
-  const body = data && typeof data === "object" ? Object.entries(data).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(", ") : "";
-  return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${body ? ` { ${body} }` : ""}</span>`;
+  const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : allViews.has(n) ? "view" : "";
+  return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${data && typeof data === "object" ? " " + esc(val(data)) : ""}</span>`;
 }
 function specsHtml(s) {
   if (!s.specs.length) return `<p class="muted" style="margin:0">No specs for this slice.</p>`;
   return s.specs.map(sp => `<div class="spec"><b>${esc(sp.name)}</b><div class="gwt">
-    ${sp.given?.length ? `<span>Given</span><div class="insts">${sp.given.map(inst).join("")}</div>` : `<span>Given</span><div class="insts"><span class="inst none">nothing yet</span></div>`}
+    <span>Given</span><div class="insts">${sp.given?.length ? sp.given.map(inst).join("") : `<span class="inst none">nothing yet</span>`}</div>
     ${sp.when ? `<span>When</span><div class="insts">${inst(sp.when)}</div>` : ""}
     <span>Then</span><div class="insts">${sp.then.length ? sp.then.map(inst).join("") : `<span class="inst none">nothing happens</span>`}</div></div></div>`).join("");
 }
 const sel = (id, label) => `<button type="button" class="link" data-go="${esc(id)}">${esc(label)}</button>`;
+const who = name => (screenActor.get(name) ? ` <span class="muted">(${esc(spaced(screenActor.get(name)))})</span>` : "");
 function sliceSummary(s) {
-  const t = s.trigger ? `${s.trigger.kind === "wfe" ? "Automation" : "Screen"} ${sel("trig:" + s.name, spaced(s.trigger.name))}` : `<span class="muted">Unspecified</span>`;
-  return `<div class="panel"><h2><span class="kind slice">Slice</span>${esc(spaced(s.name))}</h2>
-    <dl class="kv"><dt>Status</dt><dd>${esc(s.status ?? "—")}</dd>${s.story ? `<dt>Story</dt><dd>${esc(s.story)}</dd>` : ""}
+  const head = `<h2><span class="kind slice">${s.kind === "view" ? "View slice" : "Slice"}</span>${esc(spaced(s.name))}</h2>`;
+  const meta = `<dt>Status</dt><dd>${esc(s.status ?? "—")}</dd>${s.story ? `<dt>Story</dt><dd>${esc(s.story)}</dd>` : ""}`;
+  if (s.kind === "view") {
+    const readers = s.readBy.map((r, k) => `${r.kind === "wfe" ? "Automation" : "Screen"} ${sel(`read:${s.name}:${k}`, spaced(r.name))}${r.kind === "screen" ? who(r.name) : ""}`).join("<br>");
+    return `<div class="panel">${head}<dl class="kv">${meta}<dt>Read model</dt><dd>${sel(`view:${s.name}:${s.view}`, spaced(s.view))}</dd>
+      <dt>Read by</dt><dd>${readers || "—"}</dd></dl><div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
+  }
+  const t = s.trigger ? `${s.trigger.kind === "wfe" ? "Automation" : "Screen"} ${sel("trig:" + s.name, spaced(s.trigger.name))}${s.trigger.kind === "screen" ? who(s.trigger.name) : ""}` : `<span class="muted">Unspecified</span>`;
+  return `<div class="panel">${head}<dl class="kv">${meta}
     <dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Trigger</dt><dd>${t}</dd>
     <dt>Command</dt><dd>${sel("cmd:" + s.name, spaced(s.command.name))}${s.command.inferred ? ' <span class="muted">(inferred from the slice name)</span>' : ""}</dd>
     <dt>Event${s.events.length > 1 ? "s" : ""}</dt><dd>${s.events.map(e => sel("evt:" + e.name, spaced(e.name))).join(", ")}</dd>
@@ -359,39 +398,50 @@ function elementPanel(id) {
   if (n.kind === "cmd") return `<div class="panel"><h2><span class="kind cmd">Command</span>${esc(spaced(n.name))}</h2>
     <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd></dl><div><h3>Props</h3>${propsHtml(s.command.props)}</div></div>`;
   if (n.kind === "evt") {
-    const triggers = M.slices.filter(o => o.wfes.length && o.events.some(e => e.name === n.name)).flatMap(o => o.wfes);
+    const triggers = changes.filter(o => o.wfes.length && o.events.some(e => e.name === n.name)).flatMap(o => o.wfes);
     return `<div class="panel"><h2><span class="kind evt">Event</span>${esc(spaced(n.name))}</h2>
     <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd>
     ${triggers.length ? `<dt>Triggers</dt><dd>${triggers.map(w => esc(spaced(w))).join(", ")}</dd>` : ""}</dl>
     <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
   }
+  if (n.kind === "ext") return `<div class="panel"><h2><span class="kind ext">External event</span>${esc(spaced(n.name))}</h2>
+    <dl class="kv"><dt>Sent by</dt><dd>${esc(spaced(n.ev.system))}</dd><dt>Triggers</dt><dd>${n.ev.wfes.map(w => esc(spaced(w))).join(", ") || "—"}</dd></dl>
+    <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
   if (n.kind === "view") {
-    const by = M.slices.filter(o => o.views.some(v => v.name === n.name)).map(o => o.name);
+    const by = changes.filter(o => o.views.some(v => v.name === n.name)).map(o => o.name);
+    const readIn = viewSlices.filter(o => o.view === n.name).map(o => o.name);
+    const hl = n.ref.touched.length ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">· highlighted: touched in ${esc(spaced(s.name))}</span>` : "";
     return `<div class="panel"><h2><span class="kind view">Read model</span>${esc(spaced(n.name))}</h2>
-    <dl class="kv"><dt>Updated by</dt><dd>${by.map(b => sel("slice:" + b, spaced(b))).join(", ")}</dd></dl>
-    <div><h3>Props <span style="text-transform:none;letter-spacing:0;font-weight:400">· highlighted: touched in ${esc(spaced(s.name))}</span></h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
+    <dl class="kv"><dt>Updated by</dt><dd>${by.map(b => sel("slice:" + b, spaced(b))).join(", ") || "—"}</dd>
+    <dt>Read in</dt><dd>${readIn.map(b => sel("slice:" + b, spaced(b))).join(", ") || "—"}</dd></dl>
+    <div><h3>Props${hl}</h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
   }
   if (n.kind === "wfe") {
     const d = wfeDef(n.name) ?? {};
-    const from = M.slices.filter(o => o.wfes.includes(n.name)).flatMap(o => o.events.map(e => e.name));
+    const from = [...changes.filter(o => o.wfes.includes(n.name)).flatMap(o => o.events.map(e => e.name)), ...(extByWfe.get(n.name) ?? []).map(e => e.name)];
+    const reads = viewSlices.filter(o => o.readBy.some(r => r.kind === "wfe" && r.name === n.name)).map(o => o.view);
+    const issues = changes.filter(o => o.trigger?.kind === "wfe" && o.trigger.name === n.name).map(o => o.command.name);
     return `<div class="panel"><h2><span class="kind wfe">Automation</span>${esc(spaced(n.name))}</h2>
     ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
     <dl class="kv">${d.schedule ? `<dt>Schedule</dt><dd>${esc(d.schedule)}</dd>` : ""}
-    <dt>Triggered by</dt><dd>${from.length ? from.map(e => esc(spaced(e))).join(", ") : '<span class="muted">Nothing in the model; see "What the board can\'t show yet" below.</span>'}</dd>
-    <dt>Issues</dt><dd>${esc(spaced(s.command.name))}</dd></dl></div>`;
+    ${from.length ? `<dt>Triggered by</dt><dd>${from.map(e => esc(spaced(e))).join(", ")}</dd>` : ""}
+    ${reads.length ? `<dt>Reads</dt><dd>${reads.map(v => esc(spaced(v))).join(", ")}</dd>` : ""}
+    <dt>Issues</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl></div>`;
   }
-  const uses = M.slices.filter(o => o.trigger?.kind === "screen" && o.trigger.name === n.name).map(o => o.name);
+  const d = screenDef(n.name) ?? {};
+  const triggers = changes.filter(o => o.trigger?.kind === "screen" && o.trigger.name === n.name).map(o => o.name);
+  const shows = viewSlices.filter(o => o.readBy.some(r => r.kind === "screen" && r.name === n.name)).map(o => o.view);
   return `<div class="panel"><h2><span class="kind screen">Screen</span>${esc(spaced(n.name))}</h2>
-    <dl class="kv"><dt>Used in</dt><dd>${uses.map(u => sel("slice:" + u, spaced(u))).join(", ")}</dd></dl>
-    <p class="muted" style="margin:0">TEML only records a screen's name, not who uses it or what it shows.</p></div>`;
+    ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
+    <dl class="kv"><dt>Actor</dt><dd>${esc(d.actor ? spaced(d.actor) : "—")}</dd>
+    <dt>Issues</dt><dd>${triggers.map(u => sel("slice:" + u, spaced(u))).join(", ") || "—"}</dd>
+    <dt>Shows</dt><dd>${shows.map(v => esc(spaced(v))).join(", ") || "—"}</dd>
+    ${d.wireframe ? `<dt>Wireframe</dt><dd>${esc(d.wireframe)}</dd>` : ""}</dl></div>`;
 }
 
-let current = null;
 function select(id, scroll) {
-  current = id;
   const isSlice = id.startsWith("slice:");
-  const sliceName = isSlice ? id.slice(6) : M.slices[notes.find(n => n.id === id).slice].name;
-  const s = M.slices.find(x => x.name === sliceName);
+  const s = isSlice ? M.slices.find(x => x.name === id.slice(6)) : M.slices[notes.find(n => n.id === id).slice];
   const detail = document.getElementById("detail");
   detail.innerHTML = isSlice ? sliceSummary(s) : elementPanel(id) + sliceSummary(s);
   detail.style.gridTemplateColumns = isSlice ? "minmax(0,1fr)" : "";
@@ -399,11 +449,11 @@ function select(id, scroll) {
   board.classList.add("focusing");
   const linked = new Set();
   board.querySelectorAll(".note").forEach(el => el.classList.remove("sel", "linked"));
-  board.querySelectorAll(".col-head").forEach(el => el.classList.toggle("sel", el.dataset.id === "slice:" + sliceName));
+  board.querySelectorAll(".col-head").forEach(el => el.classList.toggle("sel", el.dataset.id === "slice:" + s.name));
   board.querySelectorAll(".edge").forEach(el => {
     const e = edges[+el.dataset.e];
-    const hot = isSlice ? M.slices[e.a.slice] === s && e.t !== "trig" : e.a.id === id || e.b.id === id;
-    el.classList.toggle("hot", !!hot);
+    const hot = isSlice ? M.slices[e.a.slice] === s && M.slices[e.b.slice] === s : e.a.id === id || e.b.id === id;
+    el.classList.toggle("hot", hot);
     el.setAttribute("marker-end", hot ? "url(#arrowHot)" : "url(#arrow)");
     if (hot) { linked.add(e.a.id); linked.add(e.b.id); }
   });
@@ -411,10 +461,8 @@ function select(id, scroll) {
     if (el.dataset.id === id) el.classList.add("sel");
     if (linked.has(el.dataset.id) || (isSlice && M.slices[+el.dataset.slice] === s)) el.classList.add("linked");
   });
-  if (scroll) {
-    const el = board.querySelector(`[data-id="${CSS.escape(id)}"]`);
-    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-  }
+  if (scroll) board.querySelector(`[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest", inline: "center",
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 board.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) select(b.dataset.id, false); });
 document.getElementById("detail").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) select(b.dataset.go, true); });

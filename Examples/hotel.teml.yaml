@@ -1,24 +1,49 @@
-# yaml-language-server: $schema=../schema/teml-alpha-001.schema.json
+# yaml-language-server: $schema=../schema/teml-alpha-002.schema.json
 #
-# Hotel booking: the classic Event Modeling example (see eventmodeling.org),
-# written as a compliant TEML document to try out the v-alpha-001 spec.
-#
-# Comments marked "SPEC GAP" show where the spec could not express part of
-# the model and a workaround was used instead.
+# Hotel booking: the classic Event Modeling example (see eventmodeling.org)
+# as a compliant TEML document. It uses every v-alpha-002 feature: actors and
+# screens, change and view slices, automations, an external system, and specs.
 
-apiVersion: teml.org/v-alpha-001
+apiVersion: teml.org/v-alpha-002
 metadata:
   name: Hotel
   description: >
     Guests find and book rooms and pay online. The front desk checks guests in
     and out, and housekeeping cleans rooms between stays.
-  version: "0.1.0"
+  version: "0.2.0"
 
 types:
   - RoomType:
       enum: [Single, Double, Suite]
   - BookingStatus:
       enum: [AwaitingPayment, Confirmed, CheckedIn, CheckedOut, Cancelled]
+
+# People (the swimlanes at the top of the board) and their screens.
+# Actors are referenced by name, so their names don't need anchors.
+actors:
+  - Guest:
+      description: Someone booking or staying at the hotel.
+  - Manager:
+      description: Runs the hotel and manages its rooms.
+  - FrontDesk:
+      description: Reception staff who check guests in and out.
+  - Housekeeping:
+      description: Staff who clean rooms between stays.
+
+screens:
+  - SignUpPage:
+      actor: Guest
+  - RoomSearch:
+      actor: Guest
+      wireframe: wireframes/room-search.png
+  - MyBookings:
+      actor: Guest
+  - RoomManagement:
+      actor: Manager
+  - FrontDeskConsole:
+      actor: FrontDesk
+  - HousekeepingTablet:
+      actor: Housekeeping
 
 # Aggregates
 aggs:
@@ -44,7 +69,6 @@ aggs:
 
 # Views
 views:
-  # Shown to guests on the room search screen.
   - RoomAvailability: &RoomAvailability
       rooms:
         - roomNumber: s
@@ -52,7 +76,6 @@ views:
           nightlyRate: dec
           bookedNights: date[]
 
-  # Shown to a guest on "My bookings", and to the front desk at check-in.
   - GuestBookings: &GuestBookings
       guestId: g
       guestName: s
@@ -64,29 +87,38 @@ views:
           total: dec
           status: BookingStatus
 
-  # The PaymentRequester WFE's to-do list.
   - PaymentsToRequest: &PaymentsToRequest
       pending:
         - bookingId: g
           guestId: g
           total: dec
 
-  # Shown to housekeeping staff.
   - CleaningSchedule: &CleaningSchedule
       rooms:
         - roomNumber: s
           vacatedAt: dt
 
-# Workflow engines
+# Workflow engines (defined before `systems` so that systems can alias them)
 wfes:
   - PaymentRequester: &PaymentRequester
       description: Asks the payment provider to charge the guest for each new booking.
       schedule: every minute
 
   - PaymentListener: &PaymentListener
-      description: >
-        Receives payment callbacks (webhooks) from the external payment provider
-        and records them.
+      description: Receives payment callbacks (webhooks) from the payment provider.
+
+# External systems and the events they send us
+systems:
+  - PaymentProvider:
+      description: Third-party card payments.
+      events:
+        - name: PaymentSucceeded
+          props:
+            paymentId: s
+            bookingId: g
+            amount: dec
+          wfes:
+            - *PaymentListener
 
 # Slices (left to right on the timeline)
 slices:
@@ -128,7 +160,7 @@ slices:
 
   - AddRoom:
       agg: *Room
-      trigger: { screen: RoomManagement }   # SPEC GAP: no way to say a hotel manager uses this screen
+      trigger: { screen: RoomManagement }
       command:
         props:
           roomNumber: s
@@ -146,10 +178,22 @@ slices:
       status: Completed
 
   # ---- Booking -------------------------------------------------------------
-  # SPEC GAP: Event Modeling would show a "state view" slice here, where the
-  # guest browses RoomAvailability on the RoomSearch screen. TEML requires
-  # every slice to have an event, so that step cannot be its own slice, and
-  # there is no way to say which screen displays a view.
+
+  # View slice: the guest browses availability before booking.
+  - BrowseRooms:
+      view: *RoomAvailability
+      readBy:
+        - screen: RoomSearch
+      status: Completed
+      specs:
+        - name: shows a booked night as taken
+          given:
+            - RoomAdded: { roomNumber: "101", roomType: Double, nightlyRate: 120.00 }
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-03 }
+          then:
+            - RoomAvailability:
+                rooms:
+                  - { roomNumber: "101", roomType: Double, nightlyRate: 120.00, bookedNights: [2026-11-02] }
 
   - BookRoom:
       agg: *Booking
@@ -177,8 +221,6 @@ slices:
           bookings: x
         - <<: *PaymentsToRequest
           pending: x
-      wfes:
-        - *PaymentRequester
       status: InDev
       story: HOTEL-12
       specs:
@@ -198,8 +240,26 @@ slices:
           then:
             - error: RoomUnavailable
 
-  # ---- Payment (automation, then translation) ------------------------------
+  # ---- Payment -------------------------------------------------------------
 
+  # View slice: the PaymentRequester WFE works from this to-do list.
+  - PaymentTodo:
+      view: *PaymentsToRequest
+      readBy:
+        - wfe: *PaymentRequester
+      status: InDev
+      specs:
+        - name: lists bookings that still need a payment request
+          given:
+            - RoomBooked: { bookingId: b-1, guestId: g-1, total: 360.00 }
+            - RoomBooked: { bookingId: b-2, guestId: g-2, total: 120.00 }
+            - PaymentRequested: { bookingId: b-1 }
+          then:
+            - PaymentsToRequest:
+                pending:
+                  - { bookingId: b-2, guestId: g-2, total: 120.00 }
+
+  # Automation: the WFE issues a command for each item on its to-do list.
   - RequestPayment:
       agg: *Booking
       trigger: { wfe: *PaymentRequester }
@@ -229,10 +289,8 @@ slices:
             - PaymentRequested: { bookingId: b-1 }
           then: []
 
-  # SPEC GAP: this slice is triggered by an external event ("PaymentSucceeded"
-  # from the payment provider). TEML has no way to declare an external system
-  # or its events, so the PaymentListener WFE stands in for it, and specs
-  # cannot use the provider's event in `given`.
+  # Translation: the provider's PaymentSucceeded event (see `systems`)
+  # triggers PaymentListener, which records the payment.
   - RecordPayment:
       agg: *Booking
       trigger: { wfe: *PaymentListener }
@@ -254,6 +312,34 @@ slices:
         - <<: *GuestBookings
           bookings: x
       status: Planned
+      specs:
+        - name: records a successful payment
+          given:
+            - PaymentSucceeded: { paymentId: pay_123, bookingId: b-1, amount: 360.00 }
+          then:
+            - RecordPayment: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
+
+  # ---- Managing a booking --------------------------------------------------
+
+  # View slice: one view, read on two screens by two different actors.
+  - ShowBookings:
+      view: *GuestBookings
+      readBy:
+        - screen: MyBookings
+        - screen: FrontDeskConsole
+      status: Planned
+      specs:
+        - name: shows a confirmed booking
+          given:
+            - GuestRegistered: { guestId: g-1, name: Ada Lovelace }
+            - RoomBooked: { bookingId: b-1, guestId: g-1, roomNumber: "101", total: 360.00 }
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - GuestBookings:
+                guestId: g-1
+                guestName: Ada Lovelace
+                bookings:
+                  - { bookingId: b-1, roomNumber: "101", total: 360.00, status: Confirmed }
 
   - CancelBooking:
       agg: *Booking
@@ -287,7 +373,7 @@ slices:
 
   - CheckIn:
       agg: *Booking
-      trigger: { screen: FrontDesk }
+      trigger: { screen: FrontDeskConsole }
       command:
         props:
           bookingId: g
@@ -312,7 +398,7 @@ slices:
 
   - CheckOut:
       agg: *Booking
-      trigger: { screen: FrontDesk }
+      trigger: { screen: FrontDeskConsole }
       command:
         props:
           bookingId: g
@@ -327,6 +413,14 @@ slices:
           bookings: x
         - <<: *CleaningSchedule
           rooms: x
+      status: Planned
+
+  # ---- Housekeeping --------------------------------------------------------
+
+  - CleaningList:
+      view: *CleaningSchedule
+      readBy:
+        - screen: HousekeepingTablet
       status: Planned
 
   - MarkRoomCleaned:
