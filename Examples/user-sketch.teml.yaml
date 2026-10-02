@@ -1,0 +1,29 @@
+# A TEML sketch: no header and no types. It records just enough for the team
+# to talk about the model. This is the "skimmed down" style from teml.org,
+# written so that it is valid YAML.
+
+aggs:
+  - UserAgg: &User [id, firstName, lastName, age]
+
+views:
+  - UserView: &UserView [id, firstName, lastName, age]
+
+slices:
+  # The command is left out; it is inferred as "AddUser" from the slice name.
+  - AddUser:
+      event:
+        name: AddedUser
+        props: [id, firstName, lastName, age]
+      views: [*UserView]
+
+  - RenameUser:
+      event:
+        name: RenamedUser
+        props: [id, firstName, lastName]
+      views: [*UserView]
+
+  - ReAgeUser:
+      event:
+        name: ReAgedUser
+        props: [age]
+      views: [*UserView]

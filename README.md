@@ -1,6 +1,60 @@
 # Teml-spec
 The Event Modeling Language (TEML) spec defines a versioned language for representing Event Models using text only. See https://teml.org for updates.
 
+TEML is based on YAML, so it is fast to write, simple to read, and works with any editor and with version control.
+
+```yaml
+apiVersion: teml.org/v-alpha-001
+metadata:
+  name: sample
+
+aggs:
+  - UserAgg: &User
+      id: g
+      firstName: s
+      lastName: s
+
+views:
+  - UserView: &UserView
+      id: g
+      firstName: s
+      lastName: s
+
+slices:
+  - AddUser:
+      agg: *User
+      event:
+        name: AddedUser
+        props:
+          id: g
+          firstName: s
+          lastName: s
+      views:
+        - *UserView
+```
+
+You can write TEML as a quick **sketch** (no header, untyped props) or as a **compliant** document that tools can process.
+
+## Contents
+
+| Path | What it is |
+|---|---|
+| [`spec/teml-alpha-001.md`](spec/teml-alpha-001.md) | The language specification (`teml.org/v-alpha-001`, draft) |
+| [`schema/teml-alpha-001.schema.json`](schema/teml-alpha-001.schema.json) | JSON Schema for compliant documents (editor autocomplete and validation) |
+| [`Examples/user-sketch.teml.yaml`](Examples/user-sketch.teml.yaml) | The user example as a sketch |
+| [`Examples/user-compliant.teml.yaml`](Examples/user-compliant.teml.yaml) | The user example as a compliant document |
+
+### Editor support
+
+Add this line to the top of a compliant `.teml.yaml` file to get autocomplete and validation in VS Code (Red Hat YAML extension) and other editors that use yaml-language-server:
+
+```yaml
+# yaml-language-server: $schema=https://teml.org/schema/teml-alpha-001.schema.json
+```
+
+## History
+
+2026/10/01: First draft of the `v-alpha-001` spec, aligned with teml.org, plus a JSON Schema and examples.
 
 2025/01/07: We are just at the very beginning stages of defining this spec. If you would like to help, your contributions will be appreciated.
 

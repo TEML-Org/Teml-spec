@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../schema/teml-alpha-001.schema.json
+#
+# The "Simple Example" from teml.org as a compliant TEML document, extended
+# with a WFE-driven slice and Given/When/Then specs.
+
+apiVersion: teml.org/v-alpha-001
+metadata:
+  name: sample
+  description: Adding users, keeping their details current, and welcoming them by email.
+
+# Aggregates
+aggs:
+  - UserAgg: &User
+      id: g
+      firstName: s
+      lastName: s
+      age: int
+      email: s
+
+# Views
+views:
+  - UserView: &UserView
+      id: g
+      firstName: s
+      lastName: s
+      age: int
+
+  - PendingWelcomeEmails: &PendingWelcomeEmails     # a WFE's "todo list"
+      pending:
+        - id: g
+          email: s
+
+# Workflow engines (extension: defined up front so they can be aliased)
+wfes:
+  - WelcomeEmailer: &WelcomeEmailer
+      description: Sends a welcome email to each newly added user.
+      schedule: every minute
+
+# Slices (left to right on the timeline)
+slices:
+  - AddUser:
+      agg: *User
+      trigger: { screen: AddUserForm }
+      command:
+        name: AddUser   # optional: defaults to the slice name
+        props:
+          id: g
+          firstName: s
+          lastName: s
+          age: int
+          email: s
+      event:
+        name: AddedUser
+        props:
+          id: g
+          firstName: s
+          lastName: s
+          age: int
+          email: s
+      views:
+        - *UserView
+        - <<: *PendingWelcomeEmails
+          pending: x
+      wfes:
+        - *WelcomeEmailer
+      status: Completed
+      specs:
+        - name: adds a new user
+          when:
+            AddUser: { id: u-1, firstName: Ada, lastName: Lovelace, age: 36, email: ada@example.com }
+          then:
+            - AddedUser: { id: u-1, firstName: Ada, lastName: Lovelace, age: 36, email: ada@example.com }
+        - name: rejects a duplicate id
+          given:
+            - AddedUser: { id: u-1 }
+          when:
+            AddUser: { id: u-1 }
+          then:
+            - error: UserAlreadyExists
+
+  # No command given: it is inferred as "RenameUser" with unspecified props.
+  - RenameUser:
+      agg: *User
+      event:
+        name: RenamedUser
+        props:
+          id: g
+          firstName: s
+          lastName: s
+      views:
+        - <<: *UserView
+          id: x
+          firstName: x
+          lastName: x
+      status: Completed
+
+  - ReAgeUser:
+      story: "https://www.example.com/12345"
+      status: InDev
+      agg: *User
+      event:
+        name: ReAgedUser
+        props:
+          id: g
+          age: int
+      views:
+        - <<: *UserView
+          id: x
+          age: x
+
+  # Automation: the WelcomeEmailer WFE issues this slice's command.
+  - SendWelcomeEmail:
+      agg: *User
+      trigger: { wfe: *WelcomeEmailer }
+      command:
+        props:
+          id: g
+          email: s
+      event:
+        name: SentWelcomeEmail
+        props:
+          id: g
+          sentAt: dt
+      views:
+        - <<: *PendingWelcomeEmails
+          pending: x
+      status: InDev
+      specs:
+        - name: emails a newly added user
+          given:
+            - AddedUser: { id: u-1, email: ada@example.com }
+          then:
+            - SendWelcomeEmail: { id: u-1, email: ada@example.com }
+        - name: does not email the same user twice
+          given:
+            - AddedUser: { id: u-1, email: ada@example.com }
+            - SentWelcomeEmail: { id: u-1 }
+          then: []
