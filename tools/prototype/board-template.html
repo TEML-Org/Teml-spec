@@ -1,0 +1,422 @@
+<title>Hotel Event Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --page: #f3f5f7;
+    --ink: #1b2128;
+    --muted: #5b6573;
+    --line: #d4d9df;
+    --board: #fbfcfd;
+    --dot: #dde2e7;
+    --lane-alt: rgba(27, 33, 40, 0.025);
+    --label-bg: #f0f3f6;
+    --surface: #ffffff;
+    --arrow: #7a8491;
+    --hot: #1b2128;
+    --focus: #2f6db0;
+    --note-ink: #1b2027;
+    --cmd: #86bdf2;
+    --evt: #f7ab5e;
+    --view: #93d494;
+    --screen: #ffffff;
+    --screen-edge: #98a2ae;
+    --wfe: #d3cbf1;
+    --err: #c8423b;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cond: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
+      --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
+      --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
+      --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --wfe: #b9aee4; --err: #f0776f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
+    --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
+    --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
+    --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --wfe: #b9aee4; --err: #f0776f;
+  }
+
+  body { background: var(--page); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+  .wrap { padding-inline: 24px; padding-block: 28px 56px; max-width: 1400px; margin: 0 auto; display: grid; gap: 28px; }
+  @media (max-width: 600px) { .wrap { padding-inline: 16px; } }
+
+  header { display: grid; gap: 6px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
+  h1 { font-family: var(--cond); font-weight: 700; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance; }
+  .lede { margin: 0; max-width: 68ch; color: var(--muted); }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .facts b { color: var(--ink); font-weight: 600; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
+  .sw.screen { background: var(--screen); border: 1px solid var(--screen-edge); }
+  .sw.wfe { background: var(--wfe); } .sw.cmd { background: var(--cmd); } .sw.view { background: var(--view); } .sw.evt { background: var(--evt); }
+  .zoom { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+  .zoom button { font: 500 13px var(--sans); color: var(--ink); background: none; border: 0; padding: 6px 12px; cursor: pointer; }
+  .zoom button + button { border-left: 1px solid var(--line); }
+  .zoom output { font: 500 13px var(--mono); padding: 6px 10px; border-left: 1px solid var(--line); min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums; }
+  .zoom button:hover { background: var(--label-bg); }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .scroller { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--board); max-height: 78vh; }
+  .board { position: relative; background-color: var(--board); background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 18px 18px; }
+  .board svg { position: absolute; inset: 0; z-index: 1; overflow: visible; pointer-events: none; }
+  .lane { position: absolute; left: 0; border-top: 1px solid var(--line); }
+  .lane:nth-of-type(even) { background: var(--lane-alt); }
+  .lane-label { position: sticky; left: 0; z-index: 4; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 0 14px; background: var(--label-bg); border-right: 1px solid var(--line); box-sizing: border-box; }
+  .lane-label b { font: 600 14px/1.2 var(--cond); }
+  .lane-label small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .col-head { position: absolute; top: 0; z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 4px; background: none; border: 0; text-align: left; color: var(--ink); cursor: pointer; border-radius: 6px; }
+  .col-head .sn { font: 700 16px/1.15 var(--cond); }
+  .col-head .meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); }
+  .col-head:hover .sn { text-decoration: underline; text-underline-offset: 3px; }
+  .col-head.sel .sn { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .divider { position: absolute; top: 0; width: 0; border-left: 1px dashed var(--line); z-index: 0; }
+
+  .chip { font: 600 10px/1 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 6px; border-radius: 99px; white-space: nowrap; }
+  .chip.Completed { background: var(--ink); color: var(--page); }
+  .chip.InDev { border: 1px solid var(--ink); color: var(--ink); }
+  .chip.InDev::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 4px; vertical-align: 1px; }
+  .chip.other { border: 1px dashed var(--muted); color: var(--muted); }
+
+  .note { position: absolute; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 10px; border: 0; border-radius: 3px; text-align: left; color: var(--note-ink); cursor: pointer; box-shadow: 0 1px 0 rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.08); transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease; }
+  .note .nm { font: 600 13.5px/1.2 var(--cond); overflow-wrap: anywhere; }
+  .note .k { font: 500 10px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; opacity: .7; display: flex; align-items: center; gap: 4px; }
+  .note.cmd { background: var(--cmd); } .note.evt { background: var(--evt); } .note.view { background: var(--view); } .note.wfe { background: var(--wfe); }
+  .note.screen { background: var(--screen); border: 1px solid var(--screen-edge); }
+  .note.screen::after { content: ""; position: absolute; left: 8px; right: 8px; top: 5px; height: 3px; border-radius: 2px; background: var(--screen-edge); opacity: .35; }
+  .note.inferred { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,.35) 6px 8px); }
+  .note:hover { transform: translateY(-1px); box-shadow: 0 2px 0 rgba(0,0,0,.08), 0 6px 14px rgba(0,0,0,.14); }
+  .board.focusing .note:not(.sel):not(.linked) { opacity: .45; }
+  .note.sel { outline: 2.5px solid var(--hot); outline-offset: 2px; }
+  .edge { fill: none; stroke: var(--arrow); stroke-width: 1.4; }
+  .edge.trig { stroke-dasharray: 5 4; }
+  .edge.hot { stroke: var(--hot); stroke-width: 2.2; }
+  .board.focusing .edge:not(.hot) { opacity: .3; }
+  #arrow path { fill: var(--arrow); } #arrowHot path { fill: var(--hot); }
+
+  .detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .detail { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: grid; gap: 14px; min-width: 0; }
+  .panel h2 { font: 700 22px/1.15 var(--cond); margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; overflow-wrap: anywhere; }
+  .panel h3 { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 6px; }
+  .kind { font: 500 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 7px; border-radius: 3px; color: var(--note-ink); }
+  .kind.cmd { background: var(--cmd); } .kind.evt { background: var(--evt); } .kind.view { background: var(--view); } .kind.wfe { background: var(--wfe); }
+  .kind.screen { background: var(--screen); border: 1px solid var(--screen-edge); } .kind.slice { background: var(--label-bg); color: var(--ink); border: 1px solid var(--line); }
+  .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 14px; margin: 0; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .props { list-style: none; margin: 0; padding: 0; font: 13px/1.6 var(--mono); }
+  .props .props { padding-left: 16px; border-left: 1px solid var(--line); margin-left: 4px; }
+  .props .ty { color: var(--muted); }
+  .props .touched { background: color-mix(in srgb, var(--view) 45%, transparent); border-radius: 2px; padding: 0 3px; }
+  .muted { color: var(--muted); }
+  .link { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; cursor: pointer; }
+  .link:hover { text-decoration-color: currentColor; }
+
+  .spec { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 6px; }
+  .spec:first-of-type { border-top: 0; padding-top: 0; }
+  .spec > b { font-weight: 600; }
+  .gwt { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 4px 10px; align-items: start; font-size: 13px; }
+  .gwt > span { font: 600 11px/22px var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .insts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .inst { font: 12px/1.45 var(--mono); padding: 2px 7px; border-radius: 3px; color: var(--note-ink); overflow-wrap: anywhere; }
+  .inst b { font-weight: 500; }
+  .inst.evt { background: var(--evt); } .inst.cmd { background: var(--cmd); }
+  .inst.err { background: none; color: var(--err); border: 1px solid var(--err); }
+  .inst.none { background: none; color: var(--muted); border: 1px dashed var(--line); }
+
+  .gaps { display: grid; gap: 10px; }
+  .gaps h2 { font: 700 22px/1.15 var(--cond); margin: 0; }
+  .gaps p { margin: 0; max-width: 72ch; color: var(--muted); }
+  .gaps ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 80ch; }
+  details.src summary { cursor: pointer; font-weight: 600; }
+  details.src pre { margin: 12px 0 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 70vh; font: 12.5px/1.55 var(--mono); }
+  @media (prefers-reduced-motion: reduce) { .note { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p class="lede" id="lede"></p>
+    <div class="facts" id="facts"></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="legend" aria-label="Legend">
+      <span><i class="sw screen"></i>Screen</span>
+      <span><i class="sw wfe"></i>Automation (WFE)</span>
+      <span><i class="sw cmd"></i>Command</span>
+      <span><i class="sw view"></i>Read model</span>
+      <span><i class="sw evt"></i>Event</span>
+      <span class="muted">Dashed arrow: event triggers an automation</span>
+    </div>
+    <div class="zoom" role="group" aria-label="Zoom">
+      <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+      <output id="zoomVal">80%</output>
+      <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+      <button type="button" id="zoomFit">Fit</button>
+    </div>
+  </div>
+
+  <div class="scroller" id="scroller"><div class="board" id="board"></div></div>
+
+  <section class="detail" id="detail" aria-live="polite"></section>
+
+  <section class="gaps">
+    <h2>What the board can't show yet</h2>
+    <p>Everything above is drawn from the TEML file alone. These parts of a full hotel Event Model have no place in <code>teml.org/v-alpha-001</code>, so they are missing from the board:</p>
+    <ol>
+      <li><b>The "browse rooms" step.</b> A view-only slice, where the guest sees Room Availability before booking. Every TEML slice needs an event.</li>
+      <li><b>Who uses each screen.</b> Guest, manager, front desk and housekeeping should be separate lanes at the top. TEML has no actors, so all screens share one lane.</li>
+      <li><b>Which screen shows which read model.</b> For example, Room Search shows Room Availability.</li>
+      <li><b>The payment provider's "payment succeeded" event.</b> It can't be declared, so Payment Listener appears with nothing triggering it.</li>
+      <li><b>Which read model an automation works from.</b> Payment Requester's to-do list is Payments To Request.</li>
+    </ol>
+  </section>
+
+  <details class="src">
+    <summary id="srcSummary">TEML source</summary>
+    <pre id="src"></pre>
+  </details>
+</div>
+
+<script>
+const M = __DATA__;
+
+const NOTE_W = 140, NOTE_H = 54, GAP = 12, PAD = 16, LABEL_W = 136, SUB_GAP = 40, HEAD_H = 64;
+const COL_W = NOTE_W * 2 + SUB_GAP + 44;
+const TYPE_NAMES = { g: "unique identifier", guid: "unique identifier", uuid: "unique identifier", s: "text", str: "text", string: "text",
+  int: "whole number", i: "whole number", integer: "whole number", dec: "decimal", decimal: "decimal", float: "floating-point number",
+  bool: "true / false", b: "true / false", boolean: "true / false", date: "calendar date", time: "time of day", dt: "date and time",
+  datetime: "date and time", timestamp: "date and time", dur: "duration", duration: "duration", uri: "URI", url: "URI", any: "unspecified" };
+const GEAR = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.4 1l.4 1.9c.4.1.8.3 1.1.5l1.7-1 1.4 1.4-1 1.7c.2.3.4.7.5 1.1l1.9.4v2l-1.9.4c-.1.4-.3.8-.5 1.1l1 1.7-1.4 1.4-1.7-1c-.3.2-.7.4-1.1.5L9.4 15h-2l-.4-1.9c-.4-.1-.8-.3-1.1-.5l-1.7 1-1.4-1.4 1-1.7c-.2-.3-.4-.7-.5-1.1L1.6 9V7l1.9-.4c.1-.4.3-.8.5-1.1l-1-1.7 1.4-1.4 1.7 1c.3-.2.7-.4 1.1-.5L7.6 1h1.8zM8.5 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const spaced = n => n.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+// ---------- header ----------
+document.getElementById("eyebrow").textContent = `${M.file} · ${M.apiVersion}`;
+document.getElementById("title").textContent = `${M.metadata.name} event model`;
+document.getElementById("lede").textContent = M.metadata.description ?? "";
+const nEvents = M.slices.reduce((a, s) => a + s.events.length, 0);
+const nSpecs = M.slices.reduce((a, s) => a + s.specs.length, 0);
+document.getElementById("facts").innerHTML = [
+  [M.slices.length, "slices"], [nEvents, "events"], [M.aggs.length, "aggregates"], [M.views.length, "read models"],
+  [M.wfes.length, "automations"], [nSpecs, "specs"]].map(([n, l]) => `<span><b>${n}</b> ${l}</span>`).join("");
+document.getElementById("src").textContent = M.source;
+document.getElementById("srcSummary").textContent = `TEML source (${M.file})`;
+
+// ---------- layout ----------
+const lanes = [];
+const used = k => M.slices.some(s => s.trigger?.kind === k);
+if (used("screen")) lanes.push({ id: "screen", label: "Screens", sub: "User interface", rows: 1 });
+if (used("wfe")) lanes.push({ id: "wfe", label: "Automations", sub: "Workflow engines", rows: 1 });
+lanes.push({ id: "mid", label: "Commands & read models", sub: "", rows: Math.max(1, ...M.slices.map(s => s.views.length)) });
+const aggOrder = M.aggs.map(a => a.name).filter(a => M.slices.some(s => s.agg === a));
+if (M.slices.some(s => !s.agg)) aggOrder.push(null);
+for (const a of aggOrder) {
+  const rows = Math.max(1, ...M.slices.filter(s => s.agg === a).map(s => s.events.length));
+  lanes.push({ id: "agg:" + a, label: a ?? "No aggregate", sub: "Events", rows });
+}
+let y = HEAD_H;
+for (const l of lanes) { l.y = y; l.h = l.rows * (NOTE_H + GAP) - GAP + PAD * 2; y += l.h; }
+const W = LABEL_W + M.slices.length * COL_W + 16, H = y;
+const laneOf = id => lanes.find(l => l.id === id);
+
+const notes = [], edges = [];
+const addNote = n => (notes.push(n), n);
+M.slices.forEach((s, i) => {
+  const x0 = LABEL_W + i * COL_W + 22, x1 = x0 + NOTE_W + SUB_GAP;
+  const mid = laneOf("mid"), ev = laneOf("agg:" + s.agg);
+  let trig = null;
+  if (s.trigger) {
+    const l = laneOf(s.trigger.kind);
+    trig = addNote({ id: `trig:${s.name}`, kind: s.trigger.kind, name: s.trigger.name, slice: i, x: x0, y: l.y + PAD });
+  }
+  const cmd = addNote({ id: `cmd:${s.name}`, kind: "cmd", name: s.command.name, slice: i, x: x0, y: mid.y + PAD, inferred: s.command.inferred });
+  if (trig) edges.push({ a: trig, b: cmd, t: "down" });
+  const evs = s.events.map((e, k) => addNote({ id: `evt:${e.name}`, kind: "evt", name: e.name, slice: i, x: x0, y: ev.y + PAD + k * (NOTE_H + GAP), ev: e }));
+  evs.forEach(e => edges.push({ a: cmd, b: e, t: "down" }));
+  const vs = s.views.map((v, k) => addNote({ id: `view:${s.name}:${v.name}`, kind: "view", name: v.name, slice: i, x: x1, y: mid.y + PAD + k * (NOTE_H + GAP), ref: v }));
+  evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
+});
+// event -> automation it triggers (first later slice issued by that WFE)
+M.slices.forEach((s, i) => s.wfes.forEach(w => {
+  const target = notes.find(n => n.kind === "wfe" && n.name === w && n.slice > i) ?? notes.find(n => n.kind === "wfe" && n.name === w);
+  if (!target) return;
+  notes.filter(n => n.kind === "evt" && n.slice === i).forEach(e => edges.push({ a: e, b: target, t: "trig" }));
+}));
+
+function path(e) {
+  const a = e.a, b = e.b;
+  if (e.t === "down") {
+    const x1 = a.x + NOTE_W / 2, y1 = a.y + NOTE_H, x2 = b.x + NOTE_W / 2, y2 = b.y - 3, d = Math.max(16, (y2 - y1) / 2);
+    return `M${x1},${y1} C${x1},${y1 + d} ${x2},${y2 - d} ${x2},${y2}`;
+  }
+  if (e.t === "up") {
+    const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 2, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3;
+    return `M${x1},${y1} C${x2},${y1} ${x2},${y1 + (y2 - y1) * 0.35} ${x2},${y2}`;
+  }
+  const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 3, x2 = b.x - 3, y2 = b.y + NOTE_H / 2;
+  return `M${x1},${y1} C${x1 + 120},${y1} ${x2 - 120},${y2} ${x2},${y2}`;
+}
+
+// ---------- render board ----------
+const board = document.getElementById("board");
+board.style.width = W + "px"; board.style.height = H + "px";
+let html = "";
+lanes.forEach(l => {
+  html += `<div class="lane" style="top:${l.y}px;height:${l.h}px;width:${W}px"><div class="lane-label" style="width:${LABEL_W}px"><b>${esc(l.label)}</b>${l.sub ? `<small>${esc(l.sub)}</small>` : ""}</div></div>`;
+});
+M.slices.forEach((s, i) => {
+  const x = LABEL_W + i * COL_W;
+  if (i > 0) html += `<div class="divider" style="left:${x}px;height:${H}px"></div>`;
+  const st = s.status ? `<span class="chip ${["Completed", "InDev"].includes(s.status) ? s.status : "other"}">${esc(s.status === "InDev" ? "In dev" : s.status)}</span>` : "";
+  const sp = s.specs.length ? `<span>${s.specs.length} spec${s.specs.length > 1 ? "s" : ""}</span>` : "";
+  html += `<button type="button" class="col-head" data-id="slice:${esc(s.name)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${st}${sp}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
+});
+const KIND = { screen: "Screen", wfe: "Automation", cmd: "Command", view: "Read model", evt: "Event" };
+notes.forEach(n => {
+  const k = n.kind === "wfe" ? `${GEAR}${KIND.wfe}` : n.inferred ? "Command · inferred" : KIND[n.kind];
+  html += `<button type="button" class="note ${n.kind}${n.inferred ? " inferred" : ""}" data-id="${esc(n.id)}" data-slice="${n.slice}" style="left:${n.x}px;top:${n.y}px;width:${NOTE_W}px;height:${NOTE_H}px"><span class="k">${k}</span><span class="nm">${esc(spaced(n.name))}</span></button>`;
+});
+html += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+  <marker id="arrowHot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  ${edges.map((e, i) => `<path class="edge ${e.t === "trig" ? "trig" : ""}" data-e="${i}" d="${path(e)}" marker-end="url(#arrow)"/>`).join("")}</svg>`;
+board.innerHTML = html;
+
+// ---------- zoom ----------
+let zoom = 0.8;
+const setZoom = z => { zoom = Math.min(1.5, Math.max(0.3, Math.round(z * 100) / 100)); board.style.zoom = zoom; document.getElementById("zoomVal").textContent = Math.round(zoom * 100) + "%"; };
+document.getElementById("zoomIn").onclick = () => setZoom(zoom + 0.1);
+document.getElementById("zoomOut").onclick = () => setZoom(zoom - 0.1);
+document.getElementById("zoomFit").onclick = () => setZoom((document.getElementById("scroller").clientWidth - 2) / W);
+setZoom(window.innerWidth < 700 ? 0.6 : 0.8);
+
+// ---------- details ----------
+const viewDef = n => M.views.find(v => v.name === n)?.body;
+const wfeDef = n => M.wfes.find(v => v.name === n)?.body;
+
+function propsHtml(p, touched) {
+  if (!p) return `<p class="muted" style="margin:0">Not specified.</p>`;
+  if (Array.isArray(p)) return `<ul class="props">${p.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
+  const t = new Map(touched ?? []);
+  const line = (k, v) => {
+    const mark = t.has(k) ? ` class="touched" title="Touched by this slice${t.get(k) !== "x" ? " (" + t.get(k) + ")" : ""}"` : "";
+    if (typeof v === "string") return `<li><span${mark}>${esc(k)}</span>: <span class="ty" title="${esc(TYPE_NAMES[v.replace(/(\[\])*\??$/, "")] ?? "named type")}">${esc(v)}</span></li>`;
+    if (Array.isArray(v)) {
+      const item = v[0];
+      return typeof item === "string"
+        ? `<li><span${mark}>${esc(k)}</span>: <span class="ty">list of ${esc(item)}</span></li>`
+        : `<li><span${mark}>${esc(k)}</span>: <span class="ty">list of</span>${propsHtml(item)}</li>`;
+    }
+    return `<li><span${mark}>${esc(k)}</span>:${propsHtml(v)}</li>`;
+  };
+  return `<ul class="props">${Object.entries(p).map(([k, v]) => line(k, v)).join("")}</ul>`;
+}
+const allEvents = new Map(); M.slices.forEach(s => s.events.forEach(e => allEvents.set(e.name, s)));
+const allCmds = new Map(M.slices.map(s => [s.command.name, s]));
+function inst(o) {
+  const [n, data] = Object.entries(o)[0];
+  if (n === "error") return `<span class="inst err">error: <b>${esc(data)}</b></span>`;
+  const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : "";
+  const body = data && typeof data === "object" ? Object.entries(data).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(", ") : "";
+  return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${body ? ` { ${body} }` : ""}</span>`;
+}
+function specsHtml(s) {
+  if (!s.specs.length) return `<p class="muted" style="margin:0">No specs for this slice.</p>`;
+  return s.specs.map(sp => `<div class="spec"><b>${esc(sp.name)}</b><div class="gwt">
+    ${sp.given?.length ? `<span>Given</span><div class="insts">${sp.given.map(inst).join("")}</div>` : `<span>Given</span><div class="insts"><span class="inst none">nothing yet</span></div>`}
+    ${sp.when ? `<span>When</span><div class="insts">${inst(sp.when)}</div>` : ""}
+    <span>Then</span><div class="insts">${sp.then.length ? sp.then.map(inst).join("") : `<span class="inst none">nothing happens</span>`}</div></div></div>`).join("");
+}
+const sel = (id, label) => `<button type="button" class="link" data-go="${esc(id)}">${esc(label)}</button>`;
+function sliceSummary(s) {
+  const t = s.trigger ? `${s.trigger.kind === "wfe" ? "Automation" : "Screen"} ${sel("trig:" + s.name, spaced(s.trigger.name))}` : `<span class="muted">Unspecified</span>`;
+  return `<div class="panel"><h2><span class="kind slice">Slice</span>${esc(spaced(s.name))}</h2>
+    <dl class="kv"><dt>Status</dt><dd>${esc(s.status ?? "—")}</dd>${s.story ? `<dt>Story</dt><dd>${esc(s.story)}</dd>` : ""}
+    <dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Trigger</dt><dd>${t}</dd>
+    <dt>Command</dt><dd>${sel("cmd:" + s.name, spaced(s.command.name))}${s.command.inferred ? ' <span class="muted">(inferred from the slice name)</span>' : ""}</dd>
+    <dt>Event${s.events.length > 1 ? "s" : ""}</dt><dd>${s.events.map(e => sel("evt:" + e.name, spaced(e.name))).join(", ")}</dd>
+    <dt>Updates</dt><dd>${s.views.map(v => sel(`view:${s.name}:${v.name}`, spaced(v.name))).join(", ") || "—"}</dd>
+    ${s.wfes.length ? `<dt>Triggers</dt><dd>${s.wfes.map(w => esc(spaced(w))).join(", ")}</dd>` : ""}</dl>
+    <div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
+}
+function elementPanel(id) {
+  const n = notes.find(x => x.id === id), s = M.slices[n.slice];
+  if (n.kind === "cmd") return `<div class="panel"><h2><span class="kind cmd">Command</span>${esc(spaced(n.name))}</h2>
+    <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd></dl><div><h3>Props</h3>${propsHtml(s.command.props)}</div></div>`;
+  if (n.kind === "evt") {
+    const triggers = M.slices.filter(o => o.wfes.length && o.events.some(e => e.name === n.name)).flatMap(o => o.wfes);
+    return `<div class="panel"><h2><span class="kind evt">Event</span>${esc(spaced(n.name))}</h2>
+    <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd>
+    ${triggers.length ? `<dt>Triggers</dt><dd>${triggers.map(w => esc(spaced(w))).join(", ")}</dd>` : ""}</dl>
+    <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
+  }
+  if (n.kind === "view") {
+    const by = M.slices.filter(o => o.views.some(v => v.name === n.name)).map(o => o.name);
+    return `<div class="panel"><h2><span class="kind view">Read model</span>${esc(spaced(n.name))}</h2>
+    <dl class="kv"><dt>Updated by</dt><dd>${by.map(b => sel("slice:" + b, spaced(b))).join(", ")}</dd></dl>
+    <div><h3>Props <span style="text-transform:none;letter-spacing:0;font-weight:400">· highlighted: touched in ${esc(spaced(s.name))}</span></h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
+  }
+  if (n.kind === "wfe") {
+    const d = wfeDef(n.name) ?? {};
+    const from = M.slices.filter(o => o.wfes.includes(n.name)).flatMap(o => o.events.map(e => e.name));
+    return `<div class="panel"><h2><span class="kind wfe">Automation</span>${esc(spaced(n.name))}</h2>
+    ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
+    <dl class="kv">${d.schedule ? `<dt>Schedule</dt><dd>${esc(d.schedule)}</dd>` : ""}
+    <dt>Triggered by</dt><dd>${from.length ? from.map(e => esc(spaced(e))).join(", ") : '<span class="muted">Nothing in the model; see "What the board can\'t show yet" below.</span>'}</dd>
+    <dt>Issues</dt><dd>${esc(spaced(s.command.name))}</dd></dl></div>`;
+  }
+  const uses = M.slices.filter(o => o.trigger?.kind === "screen" && o.trigger.name === n.name).map(o => o.name);
+  return `<div class="panel"><h2><span class="kind screen">Screen</span>${esc(spaced(n.name))}</h2>
+    <dl class="kv"><dt>Used in</dt><dd>${uses.map(u => sel("slice:" + u, spaced(u))).join(", ")}</dd></dl>
+    <p class="muted" style="margin:0">TEML only records a screen's name, not who uses it or what it shows.</p></div>`;
+}
+
+let current = null;
+function select(id, scroll) {
+  current = id;
+  const isSlice = id.startsWith("slice:");
+  const sliceName = isSlice ? id.slice(6) : M.slices[notes.find(n => n.id === id).slice].name;
+  const s = M.slices.find(x => x.name === sliceName);
+  const detail = document.getElementById("detail");
+  detail.innerHTML = isSlice ? sliceSummary(s) : elementPanel(id) + sliceSummary(s);
+  detail.style.gridTemplateColumns = isSlice ? "minmax(0,1fr)" : "";
+
+  board.classList.add("focusing");
+  const linked = new Set();
+  board.querySelectorAll(".note").forEach(el => el.classList.remove("sel", "linked"));
+  board.querySelectorAll(".col-head").forEach(el => el.classList.toggle("sel", el.dataset.id === "slice:" + sliceName));
+  board.querySelectorAll(".edge").forEach(el => {
+    const e = edges[+el.dataset.e];
+    const hot = isSlice ? M.slices[e.a.slice] === s && e.t !== "trig" : e.a.id === id || e.b.id === id;
+    el.classList.toggle("hot", !!hot);
+    el.setAttribute("marker-end", hot ? "url(#arrowHot)" : "url(#arrow)");
+    if (hot) { linked.add(e.a.id); linked.add(e.b.id); }
+  });
+  board.querySelectorAll(".note").forEach(el => {
+    if (el.dataset.id === id) el.classList.add("sel");
+    if (linked.has(el.dataset.id) || (isSlice && M.slices[+el.dataset.slice] === s)) el.classList.add("linked");
+  });
+  if (scroll) {
+    const el = board.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    el?.scrollIntoView({ block: "nearest", inline: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+}
+board.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) select(b.dataset.id, false); });
+document.getElementById("detail").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) select(b.dataset.go, true); });
+select("slice:" + (M.slices.find(s => s.name === "BookRoom") ?? M.slices[0]).name, false);
+</script>
