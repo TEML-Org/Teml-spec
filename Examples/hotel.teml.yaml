@@ -1,0 +1,346 @@
+# yaml-language-server: $schema=../schema/teml-alpha-001.schema.json
+#
+# Hotel booking: the classic Event Modeling example (see eventmodeling.org),
+# written as a compliant TEML document to try out the v-alpha-001 spec.
+#
+# Comments marked "SPEC GAP" show where the spec could not express part of
+# the model and a workaround was used instead.
+
+apiVersion: teml.org/v-alpha-001
+metadata:
+  name: Hotel
+  description: >
+    Guests find and book rooms and pay online. The front desk checks guests in
+    and out, and housekeeping cleans rooms between stays.
+  version: "0.1.0"
+
+types:
+  - RoomType:
+      enum: [Single, Double, Suite]
+  - BookingStatus:
+      enum: [AwaitingPayment, Confirmed, CheckedIn, CheckedOut, Cancelled]
+
+# Aggregates
+aggs:
+  - GuestAgg: &Guest
+      guestId: g
+      name: s
+      email: s
+
+  - RoomAgg: &Room
+      roomNumber: s
+      roomType: RoomType
+      nightlyRate: dec
+      needsCleaning: bool
+
+  - BookingAgg: &Booking
+      bookingId: g
+      guestId: g
+      roomNumber: s
+      checkIn: date
+      checkOut: date
+      total: dec
+      status: BookingStatus
+
+# Views
+views:
+  # Shown to guests on the room search screen.
+  - RoomAvailability: &RoomAvailability
+      rooms:
+        - roomNumber: s
+          roomType: RoomType
+          nightlyRate: dec
+          bookedNights: date[]
+
+  # Shown to a guest on "My bookings", and to the front desk at check-in.
+  - GuestBookings: &GuestBookings
+      guestId: g
+      guestName: s
+      bookings:
+        - bookingId: g
+          roomNumber: s
+          checkIn: date
+          checkOut: date
+          total: dec
+          status: BookingStatus
+
+  # The PaymentRequester WFE's to-do list.
+  - PaymentsToRequest: &PaymentsToRequest
+      pending:
+        - bookingId: g
+          guestId: g
+          total: dec
+
+  # Shown to housekeeping staff.
+  - CleaningSchedule: &CleaningSchedule
+      rooms:
+        - roomNumber: s
+          vacatedAt: dt
+
+# Workflow engines
+wfes:
+  - PaymentRequester: &PaymentRequester
+      description: Asks the payment provider to charge the guest for each new booking.
+      schedule: every minute
+
+  - PaymentListener: &PaymentListener
+      description: >
+        Receives payment callbacks (webhooks) from the external payment provider
+        and records them.
+
+# Slices (left to right on the timeline)
+slices:
+
+  # ---- Setting up --------------------------------------------------------
+
+  - RegisterGuest:
+      agg: *Guest
+      trigger: { screen: SignUpPage }
+      command:
+        props:
+          guestId: g
+          name: s
+          email: s
+      event:
+        name: GuestRegistered
+        props:
+          guestId: g
+          name: s
+          email: s
+      views:
+        - <<: *GuestBookings
+          guestId: x
+          guestName: x
+      status: Completed
+      specs:
+        - name: registers a guest
+          when:
+            RegisterGuest: { guestId: g-1, name: Ada Lovelace, email: ada@example.com }
+          then:
+            - GuestRegistered: { guestId: g-1, name: Ada Lovelace, email: ada@example.com }
+        - name: rejects an email that is already registered
+          given:
+            - GuestRegistered: { guestId: g-1, email: ada@example.com }
+          when:
+            RegisterGuest: { guestId: g-2, email: ada@example.com }
+          then:
+            - error: EmailAlreadyRegistered
+
+  - AddRoom:
+      agg: *Room
+      trigger: { screen: RoomManagement }   # SPEC GAP: no way to say a hotel manager uses this screen
+      command:
+        props:
+          roomNumber: s
+          roomType: RoomType
+          nightlyRate: dec
+      event:
+        name: RoomAdded
+        props:
+          roomNumber: s
+          roomType: RoomType
+          nightlyRate: dec
+      views:
+        - <<: *RoomAvailability
+          rooms: x
+      status: Completed
+
+  # ---- Booking -------------------------------------------------------------
+  # SPEC GAP: Event Modeling would show a "state view" slice here, where the
+  # guest browses RoomAvailability on the RoomSearch screen. TEML requires
+  # every slice to have an event, so that step cannot be its own slice, and
+  # there is no way to say which screen displays a view.
+
+  - BookRoom:
+      agg: *Booking
+      trigger: { screen: RoomSearch }
+      command:
+        props:
+          bookingId: g
+          guestId: g
+          roomNumber: s
+          checkIn: date
+          checkOut: date
+      event:
+        name: RoomBooked
+        props:
+          bookingId: g
+          guestId: g
+          roomNumber: s
+          checkIn: date
+          checkOut: date
+          total: dec
+      views:
+        - <<: *RoomAvailability
+          rooms: x
+        - <<: *GuestBookings
+          bookings: x
+        - <<: *PaymentsToRequest
+          pending: x
+      wfes:
+        - *PaymentRequester
+      status: InDev
+      story: HOTEL-12
+      specs:
+        - name: books an available room and prices the stay
+          given:
+            - RoomAdded: { roomNumber: "101", roomType: Double, nightlyRate: 120.00 }
+          when:
+            BookRoom: { bookingId: b-1, guestId: g-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05 }
+          then:
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05, total: 360.00 }
+        - name: rejects dates that overlap an existing booking
+          given:
+            - RoomAdded: { roomNumber: "101" }
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05 }
+          when:
+            BookRoom: { bookingId: b-2, roomNumber: "101", checkIn: 2026-11-04, checkOut: 2026-11-06 }
+          then:
+            - error: RoomUnavailable
+
+  # ---- Payment (automation, then translation) ------------------------------
+
+  - RequestPayment:
+      agg: *Booking
+      trigger: { wfe: *PaymentRequester }
+      command:
+        props:
+          bookingId: g
+          amount: dec
+      event:
+        name: PaymentRequested
+        props:
+          bookingId: g
+          amount: dec
+          requestedAt: dt
+      views:
+        - <<: *PaymentsToRequest
+          pending: x
+      status: InDev
+      specs:
+        - name: requests payment for a new booking
+          given:
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+          then:
+            - RequestPayment: { bookingId: b-1, amount: 360.00 }
+        - name: does not request payment twice
+          given:
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+            - PaymentRequested: { bookingId: b-1 }
+          then: []
+
+  # SPEC GAP: this slice is triggered by an external event ("PaymentSucceeded"
+  # from the payment provider). TEML has no way to declare an external system
+  # or its events, so the PaymentListener WFE stands in for it, and specs
+  # cannot use the provider's event in `given`.
+  - RecordPayment:
+      agg: *Booking
+      trigger: { wfe: *PaymentListener }
+      command:
+        props:
+          bookingId: g
+          amount: dec
+          providerReference: s
+      events:
+        - name: PaymentReceived
+          props:
+            bookingId: g
+            amount: dec
+            providerReference: s
+        - name: BookingConfirmed
+          props:
+            bookingId: g
+      views:
+        - <<: *GuestBookings
+          bookings: x
+      status: Planned
+
+  - CancelBooking:
+      agg: *Booking
+      trigger: { screen: MyBookings }
+      command:
+        props:
+          bookingId: g
+          reason: s?
+      event:
+        name: BookingCancelled
+        props:
+          bookingId: g
+          reason: s?
+      views:
+        - <<: *RoomAvailability
+          rooms: x
+        - <<: *GuestBookings
+          bookings: x
+      status: Planned
+      specs:
+        - name: cannot cancel after check-in
+          given:
+            - RoomBooked: { bookingId: b-1 }
+            - GuestCheckedIn: { bookingId: b-1 }
+          when:
+            CancelBooking: { bookingId: b-1 }
+          then:
+            - error: AlreadyCheckedIn
+
+  # ---- The stay ----------------------------------------------------------
+
+  - CheckIn:
+      agg: *Booking
+      trigger: { screen: FrontDesk }
+      command:
+        props:
+          bookingId: g
+      event:
+        name: GuestCheckedIn
+        props:
+          bookingId: g
+          roomNumber: s
+          checkedInAt: dt
+      views:
+        - <<: *GuestBookings
+          bookings: x
+      status: Planned
+      specs:
+        - name: cannot check in before payment is confirmed
+          given:
+            - RoomBooked: { bookingId: b-1 }
+          when:
+            CheckIn: { bookingId: b-1 }
+          then:
+            - error: PaymentNotConfirmed
+
+  - CheckOut:
+      agg: *Booking
+      trigger: { screen: FrontDesk }
+      command:
+        props:
+          bookingId: g
+      event:
+        name: GuestCheckedOut
+        props:
+          bookingId: g
+          roomNumber: s
+          checkedOutAt: dt
+      views:
+        - <<: *GuestBookings
+          bookings: x
+        - <<: *CleaningSchedule
+          rooms: x
+      status: Planned
+
+  - MarkRoomCleaned:
+      agg: *Room
+      trigger: { screen: HousekeepingTablet }
+      command:
+        props:
+          roomNumber: s
+      event:
+        name: RoomCleaned
+        props:
+          roomNumber: s
+          cleanedAt: dt
+      views:
+        - <<: *CleaningSchedule
+          rooms: x
+      status: Planned
