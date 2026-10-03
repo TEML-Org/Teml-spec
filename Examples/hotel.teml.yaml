@@ -2,7 +2,8 @@
 #
 # Hotel booking: the classic Event Modeling example (see eventmodeling.org)
 # as a compliant TEML document. It uses every v-alpha-002 feature: actors and
-# screens, change and view slices, automations, an external system, and specs.
+# screens, change and view slices, automations, an external system that calls
+# our API, and specs.
 
 apiVersion: teml.org/v-alpha-002
 metadata:
@@ -98,27 +99,19 @@ views:
         - roomNumber: s
           vacatedAt: dt
 
-# Workflow engines (defined before `systems` so that systems can alias them)
+# Workflow engines
 wfes:
   - PaymentRequester: &PaymentRequester
       description: Asks the payment provider to charge the guest for each new booking.
       schedule: every minute
 
-  - PaymentListener: &PaymentListener
-      description: Receives payment callbacks (webhooks) from the payment provider.
+  - ConfirmationEmailer: &ConfirmationEmailer
+      description: Emails the guest as soon as their booking is confirmed.
 
-# External systems and the events they send us
+# External systems that call our API
 systems:
   - PaymentProvider:
-      description: Third-party card payments.
-      events:
-        - name: PaymentSucceeded
-          props:
-            paymentId: s
-            bookingId: g
-            amount: dec
-          wfes:
-            - *PaymentListener
+      description: Third-party card payments. Calls POST /webhooks/payments when a charge succeeds.
 
 # Slices (left to right on the timeline)
 slices:
@@ -289,11 +282,11 @@ slices:
             - PaymentRequested: { bookingId: b-1 }
           then: []
 
-  # Translation: the provider's PaymentSucceeded event (see `systems`)
-  # triggers PaymentListener, which records the payment.
+  # Translation: the payment provider's webhook calls our API, which issues
+  # RecordPayment. The events are ours, and BookingConfirmed triggers a workflow.
   - RecordPayment:
       agg: *Booking
-      trigger: { wfe: *PaymentListener }
+      trigger: { system: PaymentProvider }
       command:
         props:
           bookingId: g
@@ -311,13 +304,45 @@ slices:
       views:
         - <<: *GuestBookings
           bookings: x
+      wfes:
+        - *ConfirmationEmailer
       status: Planned
       specs:
-        - name: records a successful payment
+        - name: records the payment and confirms the booking
           given:
-            - PaymentSucceeded: { paymentId: pay_123, bookingId: b-1, amount: 360.00 }
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+            - PaymentRequested: { bookingId: b-1, amount: 360.00 }
+          when:
+            RecordPayment: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
           then:
-            - RecordPayment: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
+            - PaymentReceived: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
+            - BookingConfirmed: { bookingId: b-1 }
+        - name: rejects a payment for an unknown booking
+          when:
+            RecordPayment: { bookingId: b-9, amount: 50.00, providerReference: pay_999 }
+          then:
+            - error: UnknownBooking
+
+  # Automation triggered directly by our own event (no to-do list needed).
+  - SendBookingConfirmation:
+      agg: *Booking
+      trigger: { wfe: *ConfirmationEmailer }
+      command:
+        name: SendConfirmationEmail
+        props:
+          bookingId: g
+      event:
+        name: ConfirmationEmailSent
+        props:
+          bookingId: g
+          sentAt: dt
+      status: Planned
+      specs:
+        - name: emails the guest once the booking is confirmed
+          given:
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - SendConfirmationEmail: { bookingId: b-1 }
 
   # ---- Managing a booking --------------------------------------------------
 

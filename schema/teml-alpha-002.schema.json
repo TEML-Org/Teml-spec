@@ -294,6 +294,9 @@
         },
         "wfe": {
           "$ref": "#/$defs/wfeRef"
+        },
+        "system": {
+          "$ref": "#/$defs/systemRef"
         }
       },
       "additionalProperties": false
@@ -398,31 +401,6 @@
         }
       ]
     },
-    "externalEvent": {
-      "type": "object",
-      "required": [
-        "name",
-        "props"
-      ],
-      "properties": {
-        "name": {
-          "$ref": "#/$defs/name"
-        },
-        "props": {
-          "$ref": "#/$defs/props"
-        },
-        "wfes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/wfeRef"
-          }
-        }
-      },
-      "patternProperties": {
-        "^x-": true
-      },
-      "additionalProperties": false
-    },
     "systemBody": {
       "type": [
         "object",
@@ -431,12 +409,6 @@
       "properties": {
         "description": {
           "type": "string"
-        },
-        "events": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/externalEvent"
-          }
         }
       },
       "patternProperties": {
@@ -580,6 +552,17 @@
         },
         {
           "$ref": "#/$defs/viewSlice"
+        }
+      ]
+    },
+    "systemRef": {
+      "description": "A name, or an alias to a system.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/name"
+        },
+        {
+          "$ref": "#/$defs/systemBody"
         }
       ]
     }

@@ -26,16 +26,8 @@ export function boardData(file) {
     wireframe: isMap(body) ? body.get("wireframe") ?? null : null,
   }));
 
-  // External systems and the events they send
-  const systems = named("systems").map(([name, body]) => ({
-    name,
-    description: isMap(body) ? body.get("description") ?? null : null,
-    events: (isMap(body) ? body.get("events", true)?.items ?? [] : []).map(e => ({
-      name: String(e.get("name")),
-      props: e.get("props", true)?.toJSON() ?? null,
-      wfes: (e.get("wfes", true)?.items ?? []).map(refName),
-    })),
-  }));
+  // External systems that call our API (they trigger change slices)
+  const systems = named("systems").map(([name, body]) => ({ name, description: isMap(body) ? body.get("description") ?? null : null }));
 
   const slicesJs = listJs("slices");
   const slices = named("slices").map(([name, s], i) => {
@@ -51,6 +43,7 @@ export function boardData(file) {
     if (isMap(trig)) {
       if (trig.has("screen")) trigger = { kind: "screen", name: refName(trig.get("screen", true)) };
       if (trig.has("wfe")) trigger = { kind: "wfe", name: refName(trig.get("wfe", true)) };
+      if (trig.has("system")) trigger = { kind: "system", name: refName(trig.get("system", true)) };
     }
     const c = b.command;
     const command = { name: typeof c === "string" ? c : c?.name ?? name, props: typeof c === "object" ? c.props ?? null : null, inferred: c === undefined };

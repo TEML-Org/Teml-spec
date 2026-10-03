@@ -90,7 +90,7 @@ for (const file of process.argv.slice(2)) {
   // Actors and screens
   for (const [n, body] of reg.screens) if (isMap(body) && body.has("actor")) resolve(body.get("actor", true), "actors", `screens.${n}.actor`);
 
-  // Events: from slices and from external systems share one namespace (E2)
+  // Events: one namespace across all slices (E2)
   const events = new Map(), commands = new Map();
   const wfeTriggered = new Set(), wfeReads = new Set(), viewUpdated = new Set(), viewRead = new Set();
   const addEvent = (e, where) => {
@@ -101,10 +101,6 @@ for (const file of process.argv.slice(2)) {
     if (!/(ed|Paid|Sent|Built|Made|Done|Left|Held|Kept|Sold|Taken|Given|Won|Lost)([A-Z]|$)/.test(en)) warn(`W1 event ${en} may not be past tense`);
     return en;
   };
-  for (const [n, body] of reg.systems) for (const e of (isMap(body) ? body.get("events", true)?.items : null) ?? []) {
-    addEvent(e, `systems.${n}.event`);
-    for (const w of e.get("wfes", true)?.items ?? []) wfeTriggered.add(resolve(w, "wfes", `systems.${n}.events.wfes`));
-  }
 
   // Slices
   const kinds = new Map();
@@ -136,6 +132,8 @@ for (const file of process.argv.slice(2)) {
     if (isMap(trig)) {
       if (trig.has("screen")) resolve(trig.get("screen", true), "screens", `${w}.trigger.screen`);
       if (trig.has("wfe")) byWfe = resolve(trig.get("wfe", true), "wfes", `${w}.trigger.wfe`);
+      // An external system calls our API to issue the command (§11); specs work like a screen's.
+      if (trig.has("system")) resolve(trig.get("system", true), "systems", `${w}.trigger.system`);
     }
     kinds.set(sname, { kind: byWfe ? "wfe" : "change", issuer: byWfe });
     const c = s.get("command", true);
@@ -184,7 +182,7 @@ for (const file of process.argv.slice(2)) {
     const EV = { label: "event", map: events }, CMD = { label: "command", map: commands }, VIEW = { label: "view", map: views };
     for (const g of sp.given ?? []) check(g, [EV], "given");
     if (k.kind === "change") {
-      if (!sp.when) E(`E7 ${w}: a change slice triggered by a screen needs a when`);
+      if (!sp.when) E(`E7 ${w}: a change slice triggered by a screen or system needs a when`);
       else check(sp.when, [CMD], "when");
       for (const t of sp.then ?? []) check(t, [EV], "then");
     } else if (k.kind === "wfe") {
@@ -203,7 +201,7 @@ for (const file of process.argv.slice(2)) {
     if (!viewUpdated.has(vn)) warn(`W2 view ${vn} is not updated by any slice`);
     else if (!viewRead.has(vn) && reg.slices.size && [...kinds.values()].some(x => x.kind === "view")) warn(`W4 view ${vn} is never read by a view slice`);
   }
-  for (const k of ["actors", "screens", "aggs", "wfes"])
+  for (const k of ["actors", "screens", "systems", "aggs", "wfes"])
     for (const n of reg[k].keys()) if (!used.has(`${k}:${n}`)) warn(`W3 ${k} ${n} is never referenced`);
   for (const x of kinds.values())
     if (x.kind === "wfe" && !wfeTriggered.has(x.issuer) && !wfeReads.has(x.issuer)) warn(`W5 WFE ${x.issuer} issues ${x.command} but nothing triggers it and it reads no view`);

@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+#
+# Feature demo: actors and screens (spec §10).
+# Each actor gets a swimlane at the top of the board, and their screens sit in it.
+
+apiVersion: teml.org/v-alpha-002
+metadata:
+  name: Coffee shop orders
+  description: A customer orders at a kiosk; a barista makes the drink.
+
+actors:
+  - Customer:
+      description: Orders drinks at the kiosk.
+  - Barista:
+      description: Makes the drinks.
+
+screens:
+  - OrderKiosk:
+      actor: Customer
+  - BaristaTablet:
+      actor: Barista
+
+aggs:
+  - OrderAgg: &Order
+      orderId: g
+      drink: s
+      customerName: s
+      status: s
+
+slices:
+  - PlaceOrder:
+      agg: *Order
+      trigger: { screen: OrderKiosk }          # the Customer's screen
+      command:
+        props: { orderId: g, drink: s, customerName: s }
+      event:
+        name: OrderPlaced
+        props: { orderId: g, drink: s, customerName: s }
+
+  - StartOrder:
+      agg: *Order
+      trigger: { screen: BaristaTablet }       # the Barista's screen
+      command:
+        props: { orderId: g }
+      event:
+        name: OrderStarted
+        props: { orderId: g, startedAt: dt }
+
+  - CompleteOrder:
+      agg: *Order
+      trigger: { screen: BaristaTablet }       # same screen, another command
+      command:
+        props: { orderId: g }
+      event:
+        name: OrderCompleted
+        props: { orderId: g, completedAt: dt }

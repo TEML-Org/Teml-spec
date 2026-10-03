@@ -112,11 +112,11 @@ screens: []    # user interfaces                                   §10.2
 aggs:    []    # aggregates                                        §7
 views:   []    # read models                                       §8
 wfes:    []    # (extension) workflow-engine processes             §9
-systems: []    # external systems and the events they send         §11
+systems: []    # external systems that call our API                §11
 slices:  []    # the timeline, in order                            §12
 ```
 
-Each section is optional, but a model without `slices` describes nothing. Authors **SHOULD** define things before they are referenced by alias, because a YAML alias (`*User`) can only refer to an anchor (`&User`) that appears earlier in the file. The order above works: `wfes` comes before `systems`, and everything comes before `slices`.
+Each section is optional, but a model without `slices` describes nothing. Authors **SHOULD** define things before they are referenced by alias, because a YAML alias (`*User`) can only refer to an anchor (`&User`) that appears earlier in the file. The order above works: everything is defined before `slices`.
 
 YAML anchors are document-wide, so two definitions **MUST NOT** use the same anchor name, even in different lists. For example, if `GuestAgg` uses `&Guest`, an actor named `Guest` needs a different anchor, or none: refer to it by name instead.
 
@@ -329,7 +329,7 @@ Change slices declare which views their events update (§12.4). View slices decl
 
 A **WFE** (WorkFlow Engine) is a process that runs in response to events without a person involved, such as a policy, saga, scheduled job or integration. Event Modeling draws it as a ⚙ processor.
 
-Slices list the WFEs their events trigger (§12.1), and external systems do the same for the events they send (§11). **(Extension)** WFEs **MAY** also be defined up front so they can be referenced by alias. A slice **MAY** state that its command is issued by a WFE (§12.5), and a view slice **MAY** state that a WFE reads its view, for example as a to-do list (§12.7).
+Slices list the WFEs their events trigger (§12.1). **(Extension)** WFEs **MAY** also be defined up front so they can be referenced by alias. A slice **MAY** state that its command is issued by a WFE (§12.5), and a view slice **MAY** state that a WFE reads its view, for example as a to-do list (§12.7).
 
 ```yaml
 wfes:
@@ -346,7 +346,7 @@ wfes:
 
 ## 10. Actors and screens
 
-People reach the system through screens. In Event Modeling, each actor gets a swimlane across the top of the board, and that actor's screens sit in it.
+People reach the system through screens. In Event Modeling, each actor gets a swimlane across the top of the board, and that actor's screens sit in it. External systems (§11) are the machine counterpart: they reach the system through its API.
 
 ### 10.1 Actors (`actors`)
 
@@ -390,38 +390,36 @@ Defining `screens` is optional. If a document has a `screens` list, every screen
 
 ## 11. External systems (`systems`)
 
-An **external system** is software outside the model, such as a payment provider, a shipping carrier or a partner's API. It sends events that the model reacts to, which Event Modeling calls a **translation**. External events usually appear in their own swimlane on the board.
+An **external system** is software outside the model, such as a payment provider, a shipping carrier or a partner's service.
 
-`systems` is a named list (§4.3):
+An external system cannot put events into our model. Events are facts recorded by *our* system. Instead, the external system **calls our API**, for example with a webhook callback, and that call issues one of our commands. The command produces our own events, which update views and trigger WFEs like any other events. Event Modeling calls this a **translation**: the outside world's information is translated into our commands and events.
+
+`systems` is a named list (§4.3) of the external systems that call the model:
 
 ```yaml
 systems:
   - PaymentProvider:
-      description: Card payments, e.g. Stripe.
-      events:
-        - name: PaymentSucceeded
-          props:
-            paymentId: s
-            bookingId: g
-            amount: dec
-          wfes:
-            - *PaymentListener
+      description: Card payments. Calls POST /webhooks/payments when a charge succeeds.
 ```
 
 | Key | Type | Description |
 |---|---|---|
-| `description` | string | |
-| `events` | list of External event | Events this system sends to the model. |
+| `description` | string | What the system is, and how it calls us (for example, which webhook). |
 
-An **external event** has the same `name` and `props` as a slice's event (§12.3), plus:
+A change slice whose command is issued by an external system names that system as its trigger (§12.5):
 
-| Key | Type | Description |
-|---|---|---|
-| `wfes` | list of WFE references or names | WFEs triggered by this event. |
+```yaml
+- ConfirmPayment:
+    trigger: { system: PaymentProvider }    # the provider's webhook calls our API
+    command:
+      props: { orderId: g, amount: dec, providerReference: s }
+    event:
+      name: PaymentConfirmed
+      props: { orderId: g, amount: dec }
+    wfes: [*ReceiptSender]                  # our event triggers our workflow
+```
 
-- External event names share one namespace with slice events. A name **MUST** be unique across all slices and systems.
-- External events **MAY** appear in specs, typically in `given` (§13).
-- The model reacts to an external event in the same way as to its own events: the event triggers a WFE, and the WFE issues a command in a later slice (`trigger: { wfe: … }`).
+On a board, each external system gets a swimlane at the top, next to the actors, because it plays the same role: it starts a command from outside the model.
 
 ---
 
@@ -502,7 +500,7 @@ An event is the fact that results from the command. It is the critical piece of 
 
 In a compliant document, an event **MUST** be a mapping with `props`.
 
-An event is defined by the slice that produces it, and an event name **MUST** be unique across all slices and systems (§11).
+An event is defined by the slice that produces it, and an event name **MUST** be unique across all slices.
 
 ### 12.4 Views in a slice
 
@@ -528,7 +526,8 @@ In the merged form:
 | Form | Meaning |
 |---|---|
 | `trigger: { screen: AddUserForm }` | A person issues the command from the screen (§10.2). |
-| `trigger: { wfe: *WelcomeEmailer }` | The referenced WFE issues the command (an automation, or a translation when the WFE is triggered by an external event). |
+| `trigger: { wfe: *WelcomeEmailer }` | The referenced WFE issues the command (an automation). |
+| `trigger: { system: PaymentProvider }` | An external system issues the command by calling our API, for example a webhook callback (§11). |
 
 When `trigger` is omitted, the trigger is unspecified.
 
@@ -576,7 +575,7 @@ A slice **MAY** include `specs`, a list of scenarios written in Event Modeling's
 | Key | Type | Description |
 |---|---|---|
 | `name` | string | **Required.** What the scenario shows. |
-| `given` | list of Instance | Events that have already happened. These can be slice events or external events (§11). |
+| `given` | list of Instance | Events that have already happened. |
 | `when` | Instance | The command under test. Change slices only. |
 | `then` | list of Instance | **Required.** The expected outcome; see the table below. |
 
@@ -586,7 +585,7 @@ What `then` holds depends on the slice:
 
 | Slice | `when` | `then` |
 |---|---|---|
-| Change slice, triggered by a screen or unspecified | the command | the events produced, **or** a single `error: <Name>` |
+| Change slice, triggered by a screen, an external system, or unspecified | the command | the events produced, **or** a single `error: <Name>` |
 | Change slice, triggered by a WFE | omitted | the commands the WFE issues (an empty list means it does nothing) |
 | View slice | omitted | exactly one instance of the slice's view, showing its state after the `given` events |
 
@@ -615,8 +614,8 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 **Errors**
 
 - E1 `apiVersion` is missing or not supported, or `metadata.name` is missing.
-- E2 A name is duplicated within a named list, an anchor is defined twice, or an event name is used more than once across slices and systems.
-- E3 A reference (alias or name) does not resolve to an element of the expected kind. This includes a screen name in a slice when the document defines `screens`.
+- E2 A name is duplicated within a named list, an anchor is defined twice, or an event name is used by more than one slice.
+- E3 A reference (alias or name) does not resolve to an element of the expected kind. This includes a screen name in a slice when the document defines `screens`, and a system named in `trigger: { system: … }`.
 - E4 A property is untyped, or a type expression names an unknown type.
 - E5 A slice is neither a change slice nor a view slice, or mixes keys of both kinds; or a change slice has both `event` and `events`.
 - E6 A merged view reference lists a property the view does not have, or gives it a type different from the view's type.
@@ -626,7 +625,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 
 - W1 An event name does not appear to be in the past tense, or a command name does not appear to be imperative.
 - W2 A view is not updated by any slice.
-- W3 An actor, screen, aggregate, view or WFE is defined but never referenced.
+- W3 An actor, screen, system, aggregate, view or WFE is defined but never referenced.
 - W4 A view is updated but never read by a view slice.
 - W5 A WFE issues commands (`trigger: { wfe: … }`) but nothing triggers it, and no view slice says it reads a view.
 
@@ -645,7 +644,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 
 - [`Examples/user-sketch.teml.yaml`](../Examples/user-sketch.teml.yaml): a sketch.
 - [`Examples/user-compliant.teml.yaml`](../Examples/user-compliant.teml.yaml): the user example as a compliant document.
-- [`Examples/hotel.teml.yaml`](../Examples/hotel.teml.yaml): the classic Event Modeling hotel example, using actors, screens, view slices and an external system.
+- [`Examples/hotel.teml.yaml`](../Examples/hotel.teml.yaml): the classic Event Modeling hotel example, using actors, screens, view slices, automations, and an external payment provider that calls our API.
 
 ## Appendix B. Open questions
 
@@ -654,12 +653,14 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - **Nested overrides.** A view override such as `rooms: x` cannot say which properties *inside* `rooms` a slice touches. A dotted key such as `rooms.bookedNights: x` is one option.
 - **Command errors.** Declaring the errors a command can produce, so that `error:` names in specs can be checked.
 - **Repeated props.** A command's props often repeat its event's props. A shorthand could cut the duplication.
+- **API endpoints.** Should `trigger: { system: … }` be able to name the endpoint the system calls (for example `POST /webhooks/payments`), the way a screen names its wireframe?
+- **Systems reading views.** Should `readBy` accept `system:` for an external system that queries one of our views through the API?
 
 ## Changes from v-alpha-001
 
 - **New: actors and screens** (§10). `actors` and `screens` named lists. Screens name their actor. When `screens` is defined, screen names in slices must resolve.
 - **New: view slices** (§12.7). A slice with `view` and `readBy` instead of an event. It records which screens display a view and which WFEs work from it. Specs on a view slice check the view's state.
-- **New: external systems** (§11). A `systems` named list declares external systems, the events they send, and the WFEs those events trigger. External events can be used in specs.
+- **New: external systems** (§11). A `systems` named list declares the external systems that call our API. A slice triggered by one uses `trigger: { system: … }`. The resulting events are our own and can trigger WFEs as usual.
 - **Changed:** a slice is now either a change slice or a view slice (E5). E2, E3, E7 and W3 cover the new elements; W4 and W5 are new.
 - **Changed:** `Planned` is added to the recommended status values.
 - **Migrating:** change `apiVersion` to `teml.org/v-alpha-002`. Every valid v-alpha-001 document is otherwise valid v-alpha-002.

@@ -43,7 +43,8 @@ You can write TEML as a quick **sketch** (no header, untyped props) or as a **co
 | [`schema/teml-alpha-002.schema.json`](schema/teml-alpha-002.schema.json) | JSON Schema for compliant documents (editor autocomplete and validation) |
 | [`Examples/user-sketch.teml.yaml`](Examples/user-sketch.teml.yaml) | The user example as a sketch |
 | [`Examples/user-compliant.teml.yaml`](Examples/user-compliant.teml.yaml) | The user example as a compliant document |
-| [`Examples/hotel.teml.yaml`](Examples/hotel.teml.yaml) | The classic Event Modeling hotel example: actors, screens, view slices, an external payment system and specs |
+| [`Examples/hotel.teml.yaml`](Examples/hotel.teml.yaml) | The classic Event Modeling hotel example: actors, screens, view slices, a payment provider that calls our API, and specs |
+| [`Examples/features/`](Examples/features/) | Small examples of each v-alpha-002 feature: actors and screens, view slices, an external system |
 | [`tools/prototype/`](tools/prototype/) | Prototype checker and board renderer |
 
 ### Editor support

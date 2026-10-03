@@ -1,0 +1,141 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+#
+# Feature demo: view slices (spec §12.7).
+# A view slice shows where a read model is read: on screens, or by an
+# automation that works from it as a to-do list.
+
+apiVersion: teml.org/v-alpha-002
+metadata:
+  name: Coffee shop pickup
+  description: Baristas work from a queue, customers track their order, and an automation texts customers when a drink is ready.
+
+actors:
+  - Customer:
+  - Barista:
+
+screens:
+  - OrderKiosk:
+      actor: Customer
+  - OrderStatusPage:
+      actor: Customer
+  - BaristaTablet:
+      actor: Barista
+
+aggs:
+  - OrderAgg: &Order
+      orderId: g
+      drink: s
+      phone: s
+      status: s
+
+views:
+  - OrderQueue: &OrderQueue
+      orders:
+        - orderId: g
+          drink: s
+          customerName: s
+
+  - OrderStatus: &OrderStatus
+      orderId: g
+      drink: s
+      status: s
+
+  - ReadyToNotify: &ReadyToNotify
+      pending:
+        - orderId: g
+          phone: s
+
+wfes:
+  - ReadyNotifier: &ReadyNotifier
+      description: Texts the customer when their drink is ready.
+
+slices:
+  - PlaceOrder:
+      agg: *Order
+      trigger: { screen: OrderKiosk }
+      command:
+        props: { orderId: g, drink: s, customerName: s, phone: s }
+      event:
+        name: OrderPlaced
+        props: { orderId: g, drink: s, customerName: s, phone: s }
+      views:
+        - <<: *OrderQueue
+          orders: x
+        - <<: *OrderStatus
+          orderId: x
+          drink: x
+          status: x
+
+  # View slice read by a screen: the barista's queue.
+  - ShowQueue:
+      view: *OrderQueue
+      readBy:
+        - screen: BaristaTablet
+      specs:
+        - name: lists orders that are not finished yet
+          given:
+            - OrderPlaced: { orderId: o-1, drink: Latte, customerName: Ada }
+            - OrderPlaced: { orderId: o-2, drink: Mocha, customerName: Grace }
+            - OrderCompleted: { orderId: o-1 }
+          then:
+            - OrderQueue:
+                orders:
+                  - { orderId: o-2, drink: Mocha, customerName: Grace }
+
+  - CompleteOrder:
+      agg: *Order
+      trigger: { screen: BaristaTablet }
+      command:
+        props: { orderId: g }
+      event:
+        name: OrderCompleted
+        props: { orderId: g, completedAt: dt }
+      views:
+        - <<: *OrderQueue
+          orders: x
+        - <<: *OrderStatus
+          status: x
+        - <<: *ReadyToNotify
+          pending: x
+
+  # View slice read by two screens, used by two different actors.
+  - TrackOrder:
+      view: *OrderStatus
+      readBy:
+        - screen: OrderStatusPage
+        - screen: BaristaTablet
+      specs:
+        - name: shows the order as ready once it is completed
+          given:
+            - OrderPlaced: { orderId: o-1, drink: Latte }
+            - OrderCompleted: { orderId: o-1 }
+          then:
+            - OrderStatus: { orderId: o-1, drink: Latte, status: Ready }
+
+  # View slice read by an automation: its to-do list.
+  - NotifyTodo:
+      view: *ReadyToNotify
+      readBy:
+        - wfe: *ReadyNotifier
+      specs:
+        - name: lists completed orders whose customer has not been texted
+          given:
+            - OrderPlaced: { orderId: o-1, phone: "+1 555 0100" }
+            - OrderCompleted: { orderId: o-1 }
+          then:
+            - ReadyToNotify:
+                pending:
+                  - { orderId: o-1, phone: "+1 555 0100" }
+
+  - NotifyCustomer:
+      agg: *Order
+      trigger: { wfe: *ReadyNotifier }
+      command:
+        name: SendReadyText
+        props: { orderId: g, phone: s }
+      event:
+        name: CustomerNotified
+        props: { orderId: g, notifiedAt: dt }
+      views:
+        - <<: *ReadyToNotify
+          pending: x
