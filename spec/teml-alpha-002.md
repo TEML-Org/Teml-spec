@@ -566,6 +566,8 @@ A view slice **MUST NOT** contain the change-slice keys `agg`, `command`, `event
 
 A view **MAY** appear in more than one view slice, for example when it is shown at different points on the timeline.
 
+On a board, a view slice's readers are drawn to the **right** of its view, because the view must exist before anything can read it (Appendix C).
+
 ---
 
 ## 13. Specifications (Given / When / Then) — (extension)
@@ -656,6 +658,34 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - **API endpoints.** Should `trigger: { system: … }` be able to name the endpoint the system calls (for example `POST /webhooks/payments`), the way a screen names its wireframe?
 - **Systems reading views.** Should `readBy` accept `system:` for an external system that queries one of our views through the API?
 
+## Appendix C. Drawing a board (informative)
+
+This appendix describes how tools are expected to draw a TEML model as an Event Modeling board. It is informative: it does not affect whether a document is valid.
+
+### C.1 Information flows left to right
+
+The board is a timeline. **Anything that uses an element is drawn to its right**, never to its left, and never directly above it in the same column. In particular:
+
+- In a view slice, the screens and automations that read the view are drawn to the **right** of the read model. On the timeline, a read model must exist before a screen can show it or an automation can work from it.
+- In a change slice, the read models an event updates are drawn to the right of that event.
+- An automation triggered by an event is drawn in a later column than the event.
+
+Within a change slice, the trigger is drawn directly above its command, and the command directly above its events. These happen together, at one point on the timeline, so they share a column.
+
+### C.2 Columns and lanes
+
+- **Columns:** one per slice, in the order of `slices`.
+- **Lanes, top to bottom:**
+  1. One lane per actor, holding that actor's screens (§10). Screens without an actor share a "Screens" lane.
+  2. One lane per external system (§11).
+  3. Automations (WFEs).
+  4. Commands and read models.
+  5. One lane per aggregate, holding its events.
+
+### C.3 Colours
+
+Following Event Modeling convention: commands are blue, events orange, read models green, and screens white. Automations are marked with a gear (⚙).
+
 ## Changes from v-alpha-001
 
 - **New: actors and screens** (§10). `actors` and `screens` named lists. Screens name their actor. When `screens` is defined, screen names in slices must resolve.
@@ -663,4 +693,5 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - **New: external systems** (§11). A `systems` named list declares the external systems that call our API. A slice triggered by one uses `trigger: { system: … }`. The resulting events are our own and can trigger WFEs as usual.
 - **Changed:** a slice is now either a change slice or a view slice (E5). E2, E3, E7 and W3 cover the new elements; W4 and W5 are new.
 - **Changed:** `Planned` is added to the recommended status values.
+- **New:** Appendix C (informative) describes how to draw a board, including the rule that information flows left to right.
 - **Migrating:** change `apiVersion` to `teml.org/v-alpha-002`. Every valid v-alpha-001 document is otherwise valid v-alpha-002.
