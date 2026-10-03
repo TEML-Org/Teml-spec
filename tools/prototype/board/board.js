@@ -43,7 +43,9 @@ const TEML_BOARD = (() => {
     M.slices.forEach((s, i) => {
       if (s.kind === "view") {
         const v = put({ id: `view:${s.name}:${s.view}`, kind: "view", name: s.view, slice: i, ref: { name: s.view, touched: [] } }, "mid", 0);
-        s.readBy.forEach((r, k) => edges.push({ a: v, b: put({ id: `read:${s.name}:${k}`, kind: r.kind, name: r.name, slice: i }, triggerLane(r), 0), t: "read" }));
+        // Readers sit to the right of the read model: on the timeline the read model
+        // must exist before a screen can show it, so information flows left to right.
+        s.readBy.forEach((r, k) => edges.push({ a: v, b: put({ id: `read:${s.name}:${k}`, kind: r.kind, name: r.name, slice: i }, triggerLane(r), 1), t: "read" }));
         return;
       }
       const trig = s.trigger ? put({ id: `trig:${s.name}`, kind: s.trigger.kind, name: s.trigger.name, slice: i }, triggerLane(s.trigger), 0) : null;
@@ -88,11 +90,8 @@ const TEML_BOARD = (() => {
         const x1 = a.x + NOTE_W / 2, y1 = a.y + NOTE_H, x2 = b.x + NOTE_W / 2, y2 = b.y - 3, d = Math.max(16, (y2 - y1) / 2);
         return `M${x1},${y1} C${x1},${y1 + d} ${x2},${y2 - d} ${x2},${y2}`;
       }
-      if (e.t === "read") {
-        const x1 = a.x + NOTE_W / 2, y1 = a.y, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3, d = Math.max(16, (y1 - y2) / 2);
-        return `M${x1},${y1} C${x1},${y1 - d} ${x2},${y2 + d} ${x2},${y2}`;
-      }
-      if (e.t === "up") {
+      // event -> read model, and read model -> reader: rightwards, then up into the target
+      if (e.t === "up" || e.t === "read") {
         const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 2, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3;
         return `M${x1},${y1} C${x2},${y1} ${x2},${y1 + (y2 - y1) * 0.35} ${x2},${y2}`;
       }

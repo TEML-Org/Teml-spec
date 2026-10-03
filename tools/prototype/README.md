@@ -40,7 +40,7 @@ To draw another model, run `node build-board.mjs path/to/model.teml.yaml out/mod
   - one event lane per aggregate
 - **Arrows:**
   - In a change slice: trigger (screen, external system or automation) → command → event(s) → read model(s).
-  - In a view slice: read model → the screens and automations that read it.
+  - In a view slice: read model → the screens and automations that read it. Readers sit to the right of the read model, because information flows left to right: the read model must exist before a screen can show it.
   - Dashed arrows run from an event to the automation it triggers.
 - **Interaction:** click a sticky or a slice heading to see its props and its Given/When/Then specs.
 
