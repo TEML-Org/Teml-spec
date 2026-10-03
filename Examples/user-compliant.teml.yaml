@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=../schema/teml-alpha-001.schema.json
+# yaml-language-server: $schema=../schema/teml-alpha-002.schema.json
 #
 # The "Simple Example" from teml.org as a compliant TEML document, extended
 # with a WFE-driven slice and Given/When/Then specs.
 
-apiVersion: teml.org/v-alpha-001
+apiVersion: teml.org/v-alpha-002
 metadata:
   name: sample
   description: Adding users, keeping their details current, and welcoming them by email.

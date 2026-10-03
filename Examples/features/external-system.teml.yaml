@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+#
+# Feature demo: an external system that calls our API (spec §11).
+# The payment provider can't add events to our model. Its webhook calls our
+# API, which issues our ConfirmPayment command. The PaymentConfirmed event is
+# ours, and it triggers our ReceiptSender workflow.
+
+apiVersion: teml.org/v-alpha-002
+metadata:
+  name: Online shop checkout
+  description: A shopper pays by card; the payment provider confirms the charge through a webhook.
+
+actors:
+  - Shopper:
+
+screens:
+  - CheckoutPage:
+      actor: Shopper
+  - OrderConfirmationPage:
+      actor: Shopper
+
+systems:
+  - PaymentProvider:
+      description: Card payments. Calls POST /webhooks/payments when a charge succeeds.
+
+aggs:
+  - OrderAgg: &Order
+      orderId: g
+      amount: dec
+      status: s
+
+views:
+  - OrderSummary: &OrderSummary
+      orderId: g
+      amount: dec
+      status: s
+
+wfes:
+  - ReceiptSender: &ReceiptSender
+      description: Emails a receipt once a payment is confirmed.
+
+slices:
+  - Checkout:
+      agg: *Order
+      trigger: { screen: CheckoutPage }
+      command:
+        props: { orderId: g, amount: dec }
+      event:
+        name: CheckoutStarted
+        props: { orderId: g, amount: dec }
+      views:
+        - <<: *OrderSummary
+          orderId: x
+          amount: x
+          status: x
+
+  # The provider's webhook calls our API, which issues this command.
+  - ConfirmPayment:
+      agg: *Order
+      trigger: { system: PaymentProvider }
+      command:
+        props: { orderId: g, amount: dec, providerReference: s }
+      event:
+        name: PaymentConfirmed
+        props: { orderId: g, amount: dec, providerReference: s }
+      views:
+        - <<: *OrderSummary
+          status: x
+      wfes:
+        - *ReceiptSender                       # our event triggers our workflow
+      specs:
+        - name: confirms the payment
+          given:
+            - CheckoutStarted: { orderId: o-1, amount: 42.00 }
+          when:
+            ConfirmPayment: { orderId: o-1, amount: 42.00, providerReference: ch_123 }
+          then:
+            - PaymentConfirmed: { orderId: o-1, amount: 42.00, providerReference: ch_123 }
+        - name: rejects a charge for the wrong amount
+          given:
+            - CheckoutStarted: { orderId: o-1, amount: 42.00 }
+          when:
+            ConfirmPayment: { orderId: o-1, amount: 4.20, providerReference: ch_124 }
+          then:
+            - error: AmountMismatch
+
+  - ShowOrder:
+      view: *OrderSummary
+      readBy:
+        - screen: OrderConfirmationPage
+
+  - SendReceipt:
+      agg: *Order
+      trigger: { wfe: *ReceiptSender }
+      command:
+        props: { orderId: g }
+      event:
+        name: ReceiptSent
+        props: { orderId: g, sentAt: dt }
+      specs:
+        - name: sends a receipt once the payment is confirmed
+          given:
+            - PaymentConfirmed: { orderId: o-1 }
+          then:
+            - SendReceipt: { orderId: o-1 }

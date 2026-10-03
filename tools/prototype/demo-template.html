@@ -1,0 +1,81 @@
+<title>TEML v-alpha-002 Demos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+__CSS__
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+  .tab { font: 600 15px/1.2 var(--cond); color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px 9px; margin-bottom: -1px; cursor: pointer; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .demo { display: grid; gap: 20px; }
+  .demo-intro { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px 40px; align-items: start; }
+  @media (max-width: 860px) { .demo-intro { grid-template-columns: minmax(0, 1fr); } }
+  .demo-intro h2 { font: 700 26px/1.15 var(--cond); margin: 0 0 8px; text-wrap: balance; }
+  .demo-intro p { margin: 0; max-width: 64ch; }
+  .demo-intro h3, .src-block h3 { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 8px; }
+  .demo-intro ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .demo-intro .facts { margin-top: 12px; }
+  .board-app { display: grid; gap: 20px; }
+  .src-block h3 span { font: 400 12px var(--mono); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+  .src-block pre { margin: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 560px; font: 12.5px/1.55 var(--mono); }
+  .note-box { border-left: 3px solid var(--sys-edge); background: var(--surface); padding: 12px 16px; border-radius: 0 6px 6px 0; max-width: 80ch; }
+  .note-box p { margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">teml.org/v-alpha-002 · draft for review (PR #4)</div>
+    <h1>What's new in v-alpha-002</h1>
+    <p class="lede">Each tab shows one new feature as a small model, then everything together in the hotel model. Every board is drawn directly from the TEML shown under it. Click any sticky or slice heading for its details and Given/When/Then specs.</p>
+  </header>
+  <div class="note-box"><p><b>Revised after review:</b> external systems no longer put events into our model. A system calls our API (for example, a webhook), which issues one of our commands. The events that follow are ours and can trigger our workflows.</p></div>
+  <nav class="tabs" role="tablist" aria-label="Demos" id="tabs"></nav>
+  <div id="panels"></div>
+</div>
+
+<template id="board-ui">
+__TOOLBAR__
+</template>
+
+<script>
+__JS__
+const DEMOS = __DATA__;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const tabs = document.getElementById("tabs"), panels = document.getElementById("panels");
+DEMOS.forEach((d, i) => {
+  tabs.insertAdjacentHTML("beforeend", `<button type="button" class="tab" role="tab" id="tab-${d.key}" aria-controls="${d.key}" aria-selected="false">${esc(d.tab)}</button>`);
+  const panel = document.createElement("section");
+  panel.className = "demo"; panel.id = d.key; panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", "tab-" + d.key); panel.hidden = true;
+  panel.innerHTML = `<div class="demo-intro">
+      <div><h2>${esc(d.title)}</h2><p>${d.intro}</p><div class="facts">${TEML_BOARD.facts(d.M)}</div></div>
+      <div><h3>What to look for</h3><ul>${d.notice.map(n => `<li>${n}</li>`).join("")}</ul></div>
+    </div>
+    <div class="board-app"></div>
+    <div class="src-block"><h3>The TEML behind this board <span>${esc(d.M.file)}</span></h3><pre></pre></div>`;
+  panel.querySelector(".board-app").append(document.getElementById("board-ui").content.cloneNode(true));
+  panel.querySelector("pre").textContent = d.M.source;
+  panels.append(panel);
+  TEML_BOARD.mountBoard(panel.querySelector(".board-app"), d.M, { select: d.select });
+});
+function show(key) {
+  DEMOS.forEach(d => {
+    const on = d.key === key;
+    document.getElementById(d.key).hidden = !on;
+    document.getElementById("tab-" + d.key).setAttribute("aria-selected", on);
+  });
+}
+tabs.addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if (!b) return;
+  show(b.getAttribute("aria-controls"));
+  try { history.replaceState(null, "", "#" + b.getAttribute("aria-controls")); } catch {}
+});
+tabs.addEventListener("keydown", e => {
+  if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+  const list = [...tabs.querySelectorAll(".tab")], i = list.indexOf(document.activeElement);
+  const next = list[(i + (e.key === "ArrowRight" ? 1 : list.length - 1)) % list.length];
+  next.focus(); next.click();
+});
+const fromHash = location.hash.slice(1);
+show(DEMOS.some(d => d.key === fromHash) ? fromHash : DEMOS[0].key);
+</script>

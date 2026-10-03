@@ -1,7 +1,8 @@
-// Usage: node build-board.mjs <file.teml.yaml> <out.html>
+// Usage: node build-board.mjs <file.teml.yaml> <out.html> [slice to select first]
 import { boardData } from "./board-data.mjs";
+import { page } from "./page.mjs";
 import fs from "fs";
-const [inFile, outFile] = process.argv.slice(2);
-const json = JSON.stringify(boardData(inFile)).replace(/</g, "\\u003c");
-fs.writeFileSync(outFile, fs.readFileSync(new URL("./board-template.html", import.meta.url), "utf8").replace("__DATA__", () => json));
+const [inFile, outFile, select = ""] = process.argv.slice(2);
+const M = boardData(inFile);
+fs.writeFileSync(outFile, page("board-template.html", { TITLE: `${M.metadata.name} Event Model`, DATA: M, SELECT: select }));
 console.log("wrote", outFile, fs.statSync(outFile).size, "bytes");
