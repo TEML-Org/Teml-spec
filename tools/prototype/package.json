@@ -6,8 +6,8 @@
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
-    "validate": "node validate.mjs ../../schema/teml-alpha-002.schema.json ../../Examples/user-compliant.teml.yaml ../../Examples/hotel.teml.yaml ../../Examples/features/*.yaml",
-    "check": "node check.mjs ../../Examples/*.yaml ../../Examples/features/*.yaml",
+    "validate": "node validate.mjs ../../schema/teml-alpha-003.schema.json ../../Examples/user-compliant.teml.yaml ../../Examples/hotel.teml.yaml ../../Examples/features/*.yaml",
+    "check": "node check.mjs ../../Examples/*.teml.yaml ../../Examples/features/*.yaml",
     "board": "mkdir -p out && node build-board.mjs ../../Examples/hotel.teml.yaml out/hotel-board.html BookRoom",
     "demos": "mkdir -p out && node build-demos.mjs out/demos.html"
   },

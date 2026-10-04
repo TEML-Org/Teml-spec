@@ -6,7 +6,7 @@ const ajv = new Ajv({ allErrors: true, strict: true, strictTypes: false, strictR
 const validate = ajv.compile(JSON.parse(fs.readFileSync(schemaPath, "utf8")));
 for (const f of files) {
   let doc;
-  try { doc = YAML.parse(fs.readFileSync(f, "utf8"), { version: "1.2", merge: true }); }
+  try { doc = YAML.parse(fs.readFileSync(f, "utf8"), { version: "1.2" }); }
   catch (e) { console.log("INVALID", f, "\n    YAML", e.message.split("\n")[0]); continue; }
   const ok = validate(doc);
   console.log(ok ? "VALID  " : "INVALID", f);

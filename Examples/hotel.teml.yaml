@@ -1,17 +1,17 @@
-# yaml-language-server: $schema=../schema/teml-alpha-002.schema.json
+# yaml-language-server: $schema=../schema/teml-alpha-003.schema.json
 #
 # Hotel booking: the classic Event Modeling example (see eventmodeling.org)
-# as a compliant TEML document. It uses every v-alpha-002 feature: actors and
+# as a compliant TEML document. It uses every v-alpha-003 feature: actors and
 # screens, change and view slices, automations, an external system that calls
 # our API, and specs.
 
-apiVersion: teml.org/v-alpha-002
+apiVersion: teml.org/v-alpha-003
 metadata:
   name: Hotel
   description: >
     Guests find and book rooms and pay online. The front desk checks guests in
     and out, and housekeeping cleans rooms between stays.
-  version: "0.2.0"
+  version: "0.3.0"
 
 types:
   - RoomType:
@@ -19,8 +19,31 @@ types:
   - BookingStatus:
       enum: [AwaitingPayment, Confirmed, CheckedIn, CheckedOut, Cancelled]
 
+  # Rows of the list views below. A list of objects uses a named type.
+  - AvailableRoom:
+      roomNumber: s
+      roomType: RoomType
+      nightlyRate: dec
+      bookedNights: date[]
+  - BookingSummary:
+      bookingId: g
+      roomNumber: s
+      checkIn: date
+      checkOut: date
+      total: dec
+      status: BookingStatus
+  - BookingToBill:
+      bookingId: g
+      guestId: g
+      total: dec
+  - BookingToConfirm:
+      bookingId: g
+      guestId: g
+  - RoomToClean:
+      roomNumber: s
+      vacatedAt: dt
+
 # People (the swimlanes at the top of the board) and their screens.
-# Actors are referenced by name, so their names don't need anchors.
 actors:
   - Guest:
       description: Someone booking or staying at the hotel.
@@ -48,18 +71,18 @@ screens:
 
 # Aggregates
 aggs:
-  - GuestAgg: &Guest
+  - GuestAgg:
       guestId: g
       name: s
       email: s
 
-  - RoomAgg: &Room
+  - RoomAgg:
       roomNumber: s
       roomType: RoomType
       nightlyRate: dec
       needsCleaning: bool
 
-  - BookingAgg: &Booking
+  - BookingAgg:
       bookingId: g
       guestId: g
       roomNumber: s
@@ -70,42 +93,30 @@ aggs:
 
 # Views
 views:
-  - RoomAvailability: &RoomAvailability
-      rooms:
-        - roomNumber: s
-          roomType: RoomType
-          nightlyRate: dec
-          bookedNights: date[]
+  - RoomAvailability:
+      rooms: AvailableRoom[]
 
-  - GuestBookings: &GuestBookings
+  - GuestBookings:
       guestId: g
       guestName: s
-      bookings:
-        - bookingId: g
-          roomNumber: s
-          checkIn: date
-          checkOut: date
-          total: dec
-          status: BookingStatus
+      bookings: BookingSummary[]
 
-  - PaymentsToRequest: &PaymentsToRequest
-      pending:
-        - bookingId: g
-          guestId: g
-          total: dec
+  - PaymentsToRequest:
+      pending: BookingToBill[]
 
-  - CleaningSchedule: &CleaningSchedule
-      rooms:
-        - roomNumber: s
-          vacatedAt: dt
+  - ConfirmationsToSend:
+      pending: BookingToConfirm[]
 
-# Workflow engines
-wfes:
-  - PaymentRequester: &PaymentRequester
+  - CleaningSchedule:
+      rooms: RoomToClean[]
+
+# Automations
+automations:
+  - PaymentRequester:
       description: Asks the payment provider to charge the guest for each new booking.
       schedule: every minute
 
-  - ConfirmationEmailer: &ConfirmationEmailer
+  - ConfirmationEmailer:
       description: Emails the guest as soon as their booking is confirmed.
 
 # External systems that call our API
@@ -119,23 +130,20 @@ slices:
   # ---- Setting up --------------------------------------------------------
 
   - RegisterGuest:
-      agg: *Guest
+      agg: GuestAgg
       trigger: { screen: SignUpPage }
       command:
         props:
           guestId: g
           name: s
           email: s
-      event:
-        name: GuestRegistered
-        props:
-          guestId: g
-          name: s
-          email: s
+      events:
+        - GuestRegistered:
+            guestId: g
+            name: s
+            email: s
       views:
-        - <<: *GuestBookings
-          guestId: x
-          guestName: x
+        - GuestBookings: [guestId, guestName]
       status: Completed
       specs:
         - name: registers a guest
@@ -152,29 +160,27 @@ slices:
             - error: EmailAlreadyRegistered
 
   - AddRoom:
-      agg: *Room
+      agg: RoomAgg
       trigger: { screen: RoomManagement }
       command:
         props:
           roomNumber: s
           roomType: RoomType
           nightlyRate: dec
-      event:
-        name: RoomAdded
-        props:
-          roomNumber: s
-          roomType: RoomType
-          nightlyRate: dec
+      events:
+        - RoomAdded:
+            roomNumber: s
+            roomType: RoomType
+            nightlyRate: dec
       views:
-        - <<: *RoomAvailability
-          rooms: x
+        - RoomAvailability: [rooms]
       status: Completed
 
   # ---- Booking -------------------------------------------------------------
 
   # View slice: the guest browses availability before booking.
   - BrowseRooms:
-      view: *RoomAvailability
+      view: RoomAvailability
       readBy:
         - screen: RoomSearch
       status: Completed
@@ -189,7 +195,7 @@ slices:
                   - { roomNumber: "101", roomType: Double, nightlyRate: 120.00, bookedNights: [2026-11-02] }
 
   - BookRoom:
-      agg: *Booking
+      agg: BookingAgg
       trigger: { screen: RoomSearch }
       command:
         props:
@@ -198,22 +204,18 @@ slices:
           roomNumber: s
           checkIn: date
           checkOut: date
-      event:
-        name: RoomBooked
-        props:
-          bookingId: g
-          guestId: g
-          roomNumber: s
-          checkIn: date
-          checkOut: date
-          total: dec
+      events:
+        - RoomBooked:
+            bookingId: g
+            guestId: g
+            roomNumber: s
+            checkIn: date
+            checkOut: date
+            total: dec
       views:
-        - <<: *RoomAvailability
-          rooms: x
-        - <<: *GuestBookings
-          bookings: x
-        - <<: *PaymentsToRequest
-          pending: x
+        - RoomAvailability: [rooms]
+        - GuestBookings: [bookings]
+        - PaymentsToRequest: [pending]
       status: InDev
       story: HOTEL-12
       specs:
@@ -235,11 +237,11 @@ slices:
 
   # ---- Payment -------------------------------------------------------------
 
-  # View slice: the PaymentRequester WFE works from this to-do list.
+  # View slice: the Payment Requester works from this to-do list.
   - PaymentTodo:
-      view: *PaymentsToRequest
+      view: PaymentsToRequest
       readBy:
-        - wfe: *PaymentRequester
+        - automation: PaymentRequester
       status: InDev
       specs:
         - name: lists bookings that still need a payment request
@@ -252,23 +254,21 @@ slices:
                 pending:
                   - { bookingId: b-2, guestId: g-2, total: 120.00 }
 
-  # Automation: the WFE issues a command for each item on its to-do list.
+  # Automation: the requester issues a command for each item on its to-do list.
   - RequestPayment:
-      agg: *Booking
-      trigger: { wfe: *PaymentRequester }
+      agg: BookingAgg
+      trigger: { automation: PaymentRequester }
       command:
         props:
           bookingId: g
           amount: dec
-      event:
-        name: PaymentRequested
-        props:
-          bookingId: g
-          amount: dec
-          requestedAt: dt
+      events:
+        - PaymentRequested:
+            bookingId: g
+            amount: dec
+            requestedAt: dt
       views:
-        - <<: *PaymentsToRequest
-          pending: x
+        - PaymentsToRequest: [pending]
       status: InDev
       specs:
         - name: requests payment for a new booking
@@ -283,9 +283,10 @@ slices:
           then: []
 
   # Translation: the payment provider's webhook calls our API, which issues
-  # RecordPayment. The events are ours, and BookingConfirmed triggers a workflow.
+  # RecordPayment. The events are ours, and BookingConfirmed puts the booking
+  # on the Confirmation Emailer's to-do list.
   - RecordPayment:
-      agg: *Booking
+      agg: BookingAgg
       trigger: { system: PaymentProvider }
       command:
         props:
@@ -293,19 +294,15 @@ slices:
           amount: dec
           providerReference: s
       events:
-        - name: PaymentReceived
-          props:
+        - PaymentReceived:
             bookingId: g
             amount: dec
             providerReference: s
-        - name: BookingConfirmed
-          props:
+        - BookingConfirmed:
             bookingId: g
       views:
-        - <<: *GuestBookings
-          bookings: x
-      wfes:
-        - *ConfirmationEmailer
+        - GuestBookings: [bookings]
+        - ConfirmationsToSend: [pending]
       status: Planned
       specs:
         - name: records the payment and confirms the booking
@@ -323,19 +320,36 @@ slices:
           then:
             - error: UnknownBooking
 
-  # Automation triggered directly by our own event (no to-do list needed).
+  # View slice: the Confirmation Emailer works from this to-do list.
+  - ConfirmationTodo:
+      view: ConfirmationsToSend
+      readBy:
+        - automation: ConfirmationEmailer
+      status: Planned
+      specs:
+        - name: lists confirmed bookings that have not been emailed
+          given:
+            - RoomBooked: { bookingId: b-1, guestId: g-1 }
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - ConfirmationsToSend:
+                pending:
+                  - { bookingId: b-1, guestId: g-1 }
+
+  # Automation: the emailer issues a command for each item on its to-do list.
   - SendBookingConfirmation:
-      agg: *Booking
-      trigger: { wfe: *ConfirmationEmailer }
+      agg: BookingAgg
+      trigger: { automation: ConfirmationEmailer }
       command:
         name: SendConfirmationEmail
         props:
           bookingId: g
-      event:
-        name: ConfirmationEmailSent
-        props:
-          bookingId: g
-          sentAt: dt
+      events:
+        - ConfirmationEmailSent:
+            bookingId: g
+            sentAt: dt
+      views:
+        - ConfirmationsToSend: [pending]
       status: Planned
       specs:
         - name: emails the guest once the booking is confirmed
@@ -348,7 +362,7 @@ slices:
 
   # View slice: one view, read on two screens by two different actors.
   - ShowBookings:
-      view: *GuestBookings
+      view: GuestBookings
       readBy:
         - screen: MyBookings
         - screen: FrontDeskConsole
@@ -367,22 +381,19 @@ slices:
                   - { bookingId: b-1, roomNumber: "101", total: 360.00, status: Confirmed }
 
   - CancelBooking:
-      agg: *Booking
+      agg: BookingAgg
       trigger: { screen: MyBookings }
       command:
         props:
           bookingId: g
           reason: s?
-      event:
-        name: BookingCancelled
-        props:
-          bookingId: g
-          reason: s?
+      events:
+        - BookingCancelled:
+            bookingId: g
+            reason: s?
       views:
-        - <<: *RoomAvailability
-          rooms: x
-        - <<: *GuestBookings
-          bookings: x
+        - RoomAvailability: [rooms]
+        - GuestBookings: [bookings]
       status: Planned
       specs:
         - name: cannot cancel after check-in
@@ -397,20 +408,18 @@ slices:
   # ---- The stay ----------------------------------------------------------
 
   - CheckIn:
-      agg: *Booking
+      agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
       command:
         props:
           bookingId: g
-      event:
-        name: GuestCheckedIn
-        props:
-          bookingId: g
-          roomNumber: s
-          checkedInAt: dt
+      events:
+        - GuestCheckedIn:
+            bookingId: g
+            roomNumber: s
+            checkedInAt: dt
       views:
-        - <<: *GuestBookings
-          bookings: x
+        - GuestBookings: [bookings]
       status: Planned
       specs:
         - name: cannot check in before payment is confirmed
@@ -422,44 +431,39 @@ slices:
             - error: PaymentNotConfirmed
 
   - CheckOut:
-      agg: *Booking
+      agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
       command:
         props:
           bookingId: g
-      event:
-        name: GuestCheckedOut
-        props:
-          bookingId: g
-          roomNumber: s
-          checkedOutAt: dt
+      events:
+        - GuestCheckedOut:
+            bookingId: g
+            roomNumber: s
+            checkedOutAt: dt
       views:
-        - <<: *GuestBookings
-          bookings: x
-        - <<: *CleaningSchedule
-          rooms: x
+        - GuestBookings: [bookings]
+        - CleaningSchedule: [rooms]
       status: Planned
 
   # ---- Housekeeping --------------------------------------------------------
 
   - CleaningList:
-      view: *CleaningSchedule
+      view: CleaningSchedule
       readBy:
         - screen: HousekeepingTablet
       status: Planned
 
   - MarkRoomCleaned:
-      agg: *Room
+      agg: RoomAgg
       trigger: { screen: HousekeepingTablet }
       command:
         props:
           roomNumber: s
-      event:
-        name: RoomCleaned
-        props:
-          roomNumber: s
-          cleanedAt: dt
+      events:
+        - RoomCleaned:
+            roomNumber: s
+            cleanedAt: dt
       views:
-        - <<: *CleaningSchedule
-          rooms: x
+        - CleaningSchedule: [rooms]
       status: Planned

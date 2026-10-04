@@ -1,11 +1,11 @@
-# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
 #
 # Feature demo: an external system that calls our API (spec §11).
 # The payment provider can't add events to our model. Its webhook calls our
 # API, which issues our ConfirmPayment command. The PaymentConfirmed event is
-# ours, and it triggers our ReceiptSender workflow.
+# ours, and it puts the order on our ReceiptSender automation's to-do list.
 
-apiVersion: teml.org/v-alpha-002
+apiVersion: teml.org/v-alpha-003
 metadata:
   name: Online shop checkout
   description: A shopper pays by card; the payment provider confirms the charge through a webhook.
@@ -24,50 +24,46 @@ systems:
       description: Card payments. Calls POST /webhooks/payments when a charge succeeds.
 
 aggs:
-  - OrderAgg: &Order
+  - OrderAgg:
       orderId: g
       amount: dec
       status: s
 
 views:
-  - OrderSummary: &OrderSummary
+  - OrderSummary:
       orderId: g
       amount: dec
       status: s
 
-wfes:
-  - ReceiptSender: &ReceiptSender
+  - ReceiptsToSend:
+      orderIds: g[]
+
+automations:
+  - ReceiptSender:
       description: Emails a receipt once a payment is confirmed.
 
 slices:
   - Checkout:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: CheckoutPage }
       command:
         props: { orderId: g, amount: dec }
-      event:
-        name: CheckoutStarted
-        props: { orderId: g, amount: dec }
+      events:
+        - CheckoutStarted: { orderId: g, amount: dec }
       views:
-        - <<: *OrderSummary
-          orderId: x
-          amount: x
-          status: x
+        - OrderSummary: [orderId, amount, status]
 
   # The provider's webhook calls our API, which issues this command.
   - ConfirmPayment:
-      agg: *Order
+      agg: OrderAgg
       trigger: { system: PaymentProvider }
       command:
         props: { orderId: g, amount: dec, providerReference: s }
-      event:
-        name: PaymentConfirmed
-        props: { orderId: g, amount: dec, providerReference: s }
+      events:
+        - PaymentConfirmed: { orderId: g, amount: dec, providerReference: s }
       views:
-        - <<: *OrderSummary
-          status: x
-      wfes:
-        - *ReceiptSender                       # our event triggers our workflow
+        - OrderSummary: [status]
+        - ReceiptsToSend: [orderIds]          # our event goes on our automation's to-do list
       specs:
         - name: confirms the payment
           given:
@@ -85,18 +81,25 @@ slices:
             - error: AmountMismatch
 
   - ShowOrder:
-      view: *OrderSummary
+      view: OrderSummary
       readBy:
         - screen: OrderConfirmationPage
 
+  # View slice: the ReceiptSender works from this to-do list.
+  - ReceiptTodo:
+      view: ReceiptsToSend
+      readBy:
+        - automation: ReceiptSender
+
   - SendReceipt:
-      agg: *Order
-      trigger: { wfe: *ReceiptSender }
+      agg: OrderAgg
+      trigger: { automation: ReceiptSender }
       command:
         props: { orderId: g }
-      event:
-        name: ReceiptSent
-        props: { orderId: g, sentAt: dt }
+      events:
+        - ReceiptSent: { orderId: g, sentAt: dt }
+      views:
+        - ReceiptsToSend: [orderIds]
       specs:
         - name: sends a receipt once the payment is confirmed
           given:

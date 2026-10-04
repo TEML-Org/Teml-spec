@@ -4,13 +4,11 @@
 const TEML_BOARD = (() => {
   const NOTE_W = 140, NOTE_H = 54, GAP = 12, PAD = 16, LABEL_W = 136, SUB_GAP = 40, HEAD_H = 64;
   const COL_W = NOTE_W * 2 + SUB_GAP + 44;
-  const TYPE_NAMES = { g: "unique identifier", guid: "unique identifier", uuid: "unique identifier", s: "text", str: "text", string: "text",
-    int: "whole number", i: "whole number", integer: "whole number", dec: "decimal", decimal: "decimal", float: "floating-point number",
-    bool: "true / false", b: "true / false", boolean: "true / false", date: "calendar date", time: "time of day", dt: "date and time",
-    datetime: "date and time", timestamp: "date and time", dur: "duration", duration: "duration", uri: "URI", url: "URI", any: "unspecified" };
+  const TYPE_NAMES = { g: "unique identifier", s: "text", int: "whole number", dec: "decimal", bool: "true / false",
+    date: "calendar date", dt: "date and time", any: "unspecified" };
   const GEAR = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.4 1l.4 1.9c.4.1.8.3 1.1.5l1.7-1 1.4 1.4-1 1.7c.2.3.4.7.5 1.1l1.9.4v2l-1.9.4c-.1.4-.3.8-.5 1.1l1 1.7-1.4 1.4-1.7-1c-.3.2-.7.4-1.1.5L9.4 15h-2l-.4-1.9c-.4-.1-.8-.3-1.1-.5l-1.7 1-1.4-1.4 1-1.7c-.2-.3-.4-.7-.5-1.1L1.6 9V7l1.9-.4c.1-.4.3-.8.5-1.1l-1-1.7 1.4-1.4 1.7 1c.3-.2.7-.4 1.1-.5L7.6 1h1.8zM8.5 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>';
   const PLUG = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 1h1.5v3.5h3V1H11v3.5h1.5V8a4.5 4.5 0 01-3.75 4.44V15h-1.5v-2.56A4.5 4.5 0 013.5 8V4.5H5V1z"/></svg>';
-  const KIND = { screen: "Screen", wfe: "Automation", system: "API call", cmd: "Command", view: "Read model", evt: "Event" };
+  const KIND = { screen: "Screen", automation: "Automation", system: "API call", cmd: "Command", view: "Read model", evt: "Event" };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const spaced = n => String(n).replace(/([a-z])([A-Z])/g, "$1 $2");
   let uid = 0;
@@ -20,7 +18,7 @@ const TEML_BOARD = (() => {
     const n = [
       [changes.length, "change slices"], [M.slices.length - changes.length, "view slices"],
       [changes.reduce((a, s) => a + s.events.length, 0), "events"], [M.actors.length, "actors"], [M.systems.length, "external systems"],
-      [M.aggs.length, "aggregates"], [M.views.length, "read models"], [M.wfes.length, "automations"],
+      [M.aggs.length, "aggregates"], [M.views.length, "read models"], [M.automations.length, "automations"],
       [M.slices.reduce((a, s) => a + s.specs.length, 0), "specs"]];
     return n.filter(([c]) => c > 0).map(([c, l]) => `<span><b>${c}</b> ${l}</span>`).join("");
   }
@@ -30,7 +28,7 @@ const TEML_BOARD = (() => {
     const changes = M.slices.filter(s => s.kind === "change"), viewSlices = M.slices.filter(s => s.kind === "view");
     const screenActor = new Map(M.screens.map(s => [s.name, s.actor]));
     const actorLane = name => (screenActor.get(name) ? "actor:" + screenActor.get(name) : "screens");
-    const triggerLane = t => (t.kind === "wfe" ? "wfe" : t.kind === "system" ? "sys:" + t.name : actorLane(t.name));
+    const triggerLane = t => (t.kind === "automation" ? "automation" : t.kind === "system" ? "sys:" + t.name : actorLane(t.name));
 
     // ---- placement: every note gets a lane and a sub-column, then stacks ----
     const notes = [], edges = [];
@@ -56,11 +54,6 @@ const TEML_BOARD = (() => {
       const vs = s.views.map(v => put({ id: `view:${s.name}:${v.name}`, kind: "view", name: v.name, slice: i, ref: v }, "mid", 1));
       evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
     });
-    // Event -> the WFE it triggers: the first sticky for that WFE later on the timeline
-    M.slices.forEach((s, i) => s.kind === "change" && s.wfes.forEach(w => {
-      const target = notes.find(n => n.kind === "wfe" && n.name === w && n.slice > i) ?? notes.find(n => n.kind === "wfe" && n.name === w);
-      if (target) notes.filter(n => n.kind === "evt" && n.slice === i).forEach(e => edges.push({ a: e, b: target, t: "trig" }));
-    }));
 
     // ---- lanes ----
     const laneIds = new Set(notes.map(n => n.lane)); laneIds.add("mid");
@@ -70,7 +63,7 @@ const TEML_BOARD = (() => {
     M.actors.forEach(a => addLane("actor:" + a.name, spaced(a.name), "Actor"));
     M.systems.forEach(s => addLane("sys:" + s.name, spaced(s.name), "External system"));
     addLane("screens", "Screens", M.actors.length ? "No actor" : "User interface");
-    addLane("wfe", "Automations", "Workflow engines");
+    addLane("automation", "Automations", "No person involved");
     addLane("mid", "Commands & read models", "");
     M.aggs.forEach(a => addLane("agg:" + a.name, a.name, "Events"));
     addLane("agg:null", "No aggregate", "Events");
@@ -115,13 +108,13 @@ const TEML_BOARD = (() => {
       html += `<button type="button" class="col-head" data-id="slice:${esc(s.name)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${kind}${st}${sp}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
     });
     notes.forEach(n => {
-      const k = n.kind === "wfe" ? `${GEAR}${KIND.wfe}` : n.kind === "system" ? `${PLUG}${KIND.system}` : n.inferred ? "Command · inferred" : KIND[n.kind];
+      const k = n.kind === "automation" ? `${GEAR}${KIND.automation}` : n.kind === "system" ? `${PLUG}${KIND.system}` : n.inferred ? "Command · inferred" : KIND[n.kind];
       html += `<button type="button" class="note ${n.kind}${n.inferred ? " inferred" : ""}" data-id="${esc(n.id)}" data-slice="${n.slice}" style="left:${n.x}px;top:${n.y}px;width:${NOTE_W}px;height:${NOTE_H}px"><span class="k">${k}</span><span class="nm">${esc(spaced(n.name))}</span></button>`;
     });
     html += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
       <marker id="arrow-${id}" class="m-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="arrowHot-${id}" class="m-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
-      ${edges.map((e, i) => `<path class="edge ${e.t === "trig" ? "trig" : ""}" data-e="${i}" d="${path(e)}" marker-end="url(#arrow-${id})"/>`).join("")}</svg>`;
+      ${edges.map((e, i) => `<path class="edge" data-e="${i}" d="${path(e)}" marker-end="url(#arrow-${id})"/>`).join("")}</svg>`;
     board.innerHTML = html;
 
     // ---- zoom ----
@@ -135,20 +128,22 @@ const TEML_BOARD = (() => {
 
     // ---- details ----
     const viewDef = n => M.views.find(v => v.name === n)?.body;
-    const wfeDef = n => M.wfes.find(v => v.name === n)?.body;
+    const automationDef = n => M.automations.find(v => v.name === n)?.body;
     const screenDef = n => M.screens.find(s => s.name === n);
     const systemDef = n => M.systems.find(s => s.name === n);
-    function propsHtml(p, touched) {
+    // Object types from `types`, expanded inline so a view's rows are visible.
+    const objType = n => { const b = M.types.find(t => t.name === n)?.body; return b && !b.enum ? b : null; };
+    function propsHtml(p, touched, depth = 0) {
       if (!p) return `<p class="muted" style="margin:0">Not specified.</p>`;
       if (Array.isArray(p)) return `<ul class="props">${p.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
-      const t = new Map(touched ?? []);
+      const t = new Set(touched ?? []);
       const line = (k, v) => {
-        const mark = t.has(k) ? ` class="touched" title="Touched by this slice${t.get(k) !== "x" ? " (" + t.get(k) + ")" : ""}"` : "";
-        if (typeof v === "string") return `<li><span${mark}>${esc(k)}</span>: <span class="ty" title="${esc(TYPE_NAMES[v.replace(/(\[\])*\??$/, "")] ?? "named type")}">${esc(v)}</span></li>`;
-        if (Array.isArray(v)) return typeof v[0] === "string"
-          ? `<li><span${mark}>${esc(k)}</span>: <span class="ty">list of ${esc(v[0])}</span></li>`
-          : `<li><span${mark}>${esc(k)}</span>: <span class="ty">list of</span>${propsHtml(v[0])}</li>`;
-        return `<li><span${mark}>${esc(k)}</span>:${propsHtml(v)}</li>`;
+        const mark = t.has(k) ? ` class="touched" title="Touched by this slice"` : "";
+        if (typeof v === "string") {
+          const base = v.replace(/(\[\])*\??$/, ""), sub = depth < 3 && objType(base);
+          return `<li><span${mark}>${esc(k)}</span>: <span class="ty" title="${esc(TYPE_NAMES[base] ?? "named type")}">${esc(v)}</span>${sub ? propsHtml(sub, null, depth + 1) : ""}</li>`;
+        }
+        return `<li><span${mark}>${esc(k)}</span>:${propsHtml(v, null, depth + 1)}</li>`;
       };
       return `<ul class="props">${Object.entries(p).map(([k, v]) => line(k, v)).join("")}</ul>`;
     }
@@ -171,7 +166,7 @@ const TEML_BOARD = (() => {
     }
     const sel = (nid, label) => `<button type="button" class="link" data-go="${esc(nid)}">${esc(label)}</button>`;
     const who = name => (screenActor.get(name) ? ` <span class="muted">(${esc(spaced(screenActor.get(name)))})</span>` : "");
-    const triggerText = (t, nid) => t.kind === "wfe" ? `Automation ${sel(nid, spaced(t.name))}`
+    const triggerText = (t, nid) => t.kind === "automation" ? `Automation ${sel(nid, spaced(t.name))}`
       : t.kind === "system" ? `External system ${sel(nid, spaced(t.name))} <span class="muted">(calls our API)</span>`
       : `Screen ${sel(nid, spaced(t.name))}${who(t.name)}`;
     function sliceSummary(s) {
@@ -183,8 +178,7 @@ const TEML_BOARD = (() => {
         <dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Trigger</dt><dd>${s.trigger ? triggerText(s.trigger, "trig:" + s.name) : '<span class="muted">Unspecified</span>'}</dd>
         <dt>Command</dt><dd>${sel("cmd:" + s.name, spaced(s.command.name))}${s.command.inferred ? ' <span class="muted">(inferred from the slice name)</span>' : ""}</dd>
         <dt>Event${s.events.length > 1 ? "s" : ""}</dt><dd>${s.events.map(e => sel("evt:" + e.name, spaced(e.name))).join(", ")}</dd>
-        <dt>Updates</dt><dd>${s.views.map(v => sel(`view:${s.name}:${v.name}`, spaced(v.name))).join(", ") || "—"}</dd>
-        ${s.wfes.length ? `<dt>Triggers</dt><dd>${s.wfes.map(w => esc(spaced(w))).join(", ")}</dd>` : ""}</dl>
+        <dt>Updates</dt><dd>${s.views.map(v => sel(`view:${s.name}:${v.name}`, spaced(v.name))).join(", ") || "—"}</dd></dl>
         <div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
     }
     function elementPanel(nid) {
@@ -192,8 +186,7 @@ const TEML_BOARD = (() => {
       if (n.kind === "cmd") return `<div class="panel"><h2><span class="kind cmd">Command</span>${esc(spaced(n.name))}</h2>
         <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd></dl><div><h3>Props</h3>${propsHtml(s.command.props)}</div></div>`;
       if (n.kind === "evt") return `<div class="panel"><h2><span class="kind evt">Event</span>${esc(spaced(n.name))}</h2>
-        <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd>
-        ${s.wfes.length ? `<dt>Triggers</dt><dd>${s.wfes.map(w => esc(spaced(w))).join(", ")}</dd>` : ""}</dl>
+        <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd></dl>
         <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
       if (n.kind === "view") {
         const by = changes.filter(o => o.views.some(v => v.name === n.name)).map(o => o.name);
@@ -204,15 +197,13 @@ const TEML_BOARD = (() => {
         <dt>Read in</dt><dd>${readIn.map(b => sel("slice:" + b, spaced(b))).join(", ") || "—"}</dd></dl>
         <div><h3>Props${hl}</h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
       }
-      if (n.kind === "wfe") {
-        const d = wfeDef(n.name) ?? {};
-        const from = changes.filter(o => o.wfes.includes(n.name)).flatMap(o => o.events.map(e => e.name));
-        const reads = viewSlices.filter(o => o.readBy.some(r => r.kind === "wfe" && r.name === n.name)).map(o => o.view);
-        const issues = changes.filter(o => o.trigger?.kind === "wfe" && o.trigger.name === n.name).map(o => o.command.name);
-        return `<div class="panel"><h2><span class="kind wfe">Automation</span>${esc(spaced(n.name))}</h2>
+      if (n.kind === "automation") {
+        const d = automationDef(n.name) ?? {};
+        const reads = viewSlices.filter(o => o.readBy.some(r => r.kind === "automation" && r.name === n.name)).map(o => o.view);
+        const issues = changes.filter(o => o.trigger?.kind === "automation" && o.trigger.name === n.name).map(o => o.command.name);
+        return `<div class="panel"><h2><span class="kind automation">Automation</span>${esc(spaced(n.name))}</h2>
         ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
         <dl class="kv">${d.schedule ? `<dt>Schedule</dt><dd>${esc(d.schedule)}</dd>` : ""}
-        ${from.length ? `<dt>Triggered by</dt><dd>${from.map(e => esc(spaced(e))).join(", ")}</dd>` : ""}
         ${reads.length ? `<dt>Reads</dt><dd>${reads.map(v => esc(spaced(v))).join(", ")}</dd>` : ""}
         <dt>Issues</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl></div>`;
       }

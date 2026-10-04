@@ -1,45 +1,49 @@
-# yaml-language-server: $schema=../schema/teml-alpha-002.schema.json
+# yaml-language-server: $schema=../schema/teml-alpha-003.schema.json
 #
 # The "Simple Example" from teml.org as a compliant TEML document, extended
-# with a WFE-driven slice and Given/When/Then specs.
+# with an automation and Given/When/Then specs.
 
-apiVersion: teml.org/v-alpha-002
+apiVersion: teml.org/v-alpha-003
 metadata:
   name: sample
   description: Adding users, keeping their details current, and welcoming them by email.
 
-# Aggregates
+screens:
+  - AddUserForm:
+  - UserList:
+
+types:
+  - PendingEmail:
+      id: g
+      email: s
+
+automations:
+  - WelcomeEmailer:
+      description: Sends a welcome email to each newly added user.
+      schedule: every minute
+
 aggs:
-  - UserAgg: &User
+  - UserAgg:
       id: g
       firstName: s
       lastName: s
       age: int
       email: s
 
-# Views
 views:
-  - UserView: &UserView
+  - UserView:
       id: g
       firstName: s
       lastName: s
       age: int
 
-  - PendingWelcomeEmails: &PendingWelcomeEmails     # a WFE's "todo list"
-      pending:
-        - id: g
-          email: s
-
-# Workflow engines (extension: defined up front so they can be aliased)
-wfes:
-  - WelcomeEmailer: &WelcomeEmailer
-      description: Sends a welcome email to each newly added user.
-      schedule: every minute
+  - PendingWelcomeEmails:     # the automation's to-do list
+      pending: PendingEmail[]
 
 # Slices (left to right on the timeline)
 slices:
   - AddUser:
-      agg: *User
+      agg: UserAgg
       trigger: { screen: AddUserForm }
       command:
         name: AddUser   # optional: defaults to the slice name
@@ -49,20 +53,16 @@ slices:
           lastName: s
           age: int
           email: s
-      event:
-        name: AddedUser
-        props:
-          id: g
-          firstName: s
-          lastName: s
-          age: int
-          email: s
+      events:
+        - AddedUser:
+            id: g
+            firstName: s
+            lastName: s
+            age: int
+            email: s
       views:
-        - *UserView
-        - <<: *PendingWelcomeEmails
-          pending: x
-      wfes:
-        - *WelcomeEmailer
+        - UserView
+        - PendingWelcomeEmails: [pending]
       status: Completed
       specs:
         - name: adds a new user
@@ -80,50 +80,54 @@ slices:
 
   # No command given: it is inferred as "RenameUser" with unspecified props.
   - RenameUser:
-      agg: *User
-      event:
-        name: RenamedUser
-        props:
-          id: g
-          firstName: s
-          lastName: s
+      agg: UserAgg
+      events:
+        - RenamedUser:
+            id: g
+            firstName: s
+            lastName: s
       views:
-        - <<: *UserView
-          id: x
-          firstName: x
-          lastName: x
+        - UserView: [id, firstName, lastName]
       status: Completed
 
   - ReAgeUser:
       story: "https://www.example.com/12345"
       status: InDev
-      agg: *User
-      event:
-        name: ReAgedUser
-        props:
-          id: g
-          age: int
+      agg: UserAgg
+      events:
+        - ReAgedUser:
+            id: g
+            age: int
       views:
-        - <<: *UserView
-          id: x
-          age: int
+        - UserView: [id, age]
 
-  # Automation: the WelcomeEmailer WFE issues this slice's command.
+  - ShowUsers:
+      view: UserView
+      readBy:
+        - screen: UserList
+      status: Completed
+
+  # View slice: the WelcomeEmailer works from this to-do list.
+  - WelcomeTodo:
+      view: PendingWelcomeEmails
+      readBy:
+        - automation: WelcomeEmailer
+      status: InDev
+
+  # Automation: the WelcomeEmailer issues this slice's command.
   - SendWelcomeEmail:
-      agg: *User
-      trigger: { wfe: *WelcomeEmailer }
+      agg: UserAgg
+      trigger: { automation: WelcomeEmailer }
       command:
         props:
           id: g
           email: s
-      event:
-        name: SentWelcomeEmail
-        props:
-          id: g
-          sentAt: dt
+      events:
+        - SentWelcomeEmail:
+            id: g
+            sentAt: dt
       views:
-        - <<: *PendingWelcomeEmails
-          pending: x
+        - PendingWelcomeEmails: [pending]
       status: InDev
       specs:
         - name: emails a newly added user

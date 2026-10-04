@@ -3,27 +3,25 @@
 # written so that it is valid YAML.
 
 aggs:
-  - UserAgg: &User [id, firstName, lastName, age]
+  - UserAgg: [id, firstName, lastName, age]
 
 views:
-  - UserView: &UserView [id, firstName, lastName, age]
+  - UserView: [id, firstName, lastName, age]
 
 slices:
   # The command is left out; it is inferred as "AddUser" from the slice name.
   - AddUser:
-      event:
-        name: AddedUser
-        props: [id, firstName, lastName, age]
-      views: [*UserView]
+      events:
+        - AddedUser: [id, firstName, lastName, age]
+      views: [UserView]
 
   - RenameUser:
-      event:
-        name: RenamedUser
-        props: [id, firstName, lastName]
-      views: [*UserView]
+      events:
+        - RenamedUser: [id, firstName, lastName]
+      views:
+        - UserView: [firstName, lastName]
 
   - ReAgeUser:
-      event:
-        name: ReAgedUser
-        props: [age]
-      views: [*UserView]
+      events: [ReAgedUser]
+      views:
+        - UserView: [age]
