@@ -1,10 +1,10 @@
-# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
 #
-# Feature demo: view slices (spec §12.7).
+# Feature demo: view slices (spec §12.6).
 # A view slice shows where a read model is read: on screens, or by an
 # automation that works from it as a to-do list.
 
-apiVersion: teml.org/v-alpha-002
+apiVersion: teml.org/v-alpha-003
 metadata:
   name: Coffee shop pickup
   description: Baristas work from a queue, customers track their order, and an automation texts customers when a drink is ready.
@@ -21,54 +21,53 @@ screens:
   - BaristaTablet:
       actor: Barista
 
+types:
+  - QueuedOrder:
+      orderId: g
+      drink: s
+      customerName: s
+  - TextToSend:
+      orderId: g
+      phone: s
+
 aggs:
-  - OrderAgg: &Order
+  - OrderAgg:
       orderId: g
       drink: s
       phone: s
       status: s
 
 views:
-  - OrderQueue: &OrderQueue
-      orders:
-        - orderId: g
-          drink: s
-          customerName: s
+  - OrderQueue:
+      orders: QueuedOrder[]
 
-  - OrderStatus: &OrderStatus
+  - OrderStatus:
       orderId: g
       drink: s
       status: s
 
-  - ReadyToNotify: &ReadyToNotify
-      pending:
-        - orderId: g
-          phone: s
+  - ReadyToNotify:
+      pending: TextToSend[]
 
-wfes:
-  - ReadyNotifier: &ReadyNotifier
+automations:
+  - ReadyNotifier:
       description: Texts the customer when their drink is ready.
 
 slices:
   - PlaceOrder:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: OrderKiosk }
       command:
         props: { orderId: g, drink: s, customerName: s, phone: s }
-      event:
-        name: OrderPlaced
-        props: { orderId: g, drink: s, customerName: s, phone: s }
+      events:
+        - OrderPlaced: { orderId: g, drink: s, customerName: s, phone: s }
       views:
-        - <<: *OrderQueue
-          orders: x
-        - <<: *OrderStatus
-          orderId: x
-          drink: x
-          status: x
+        - OrderQueue: [orders]
+        - OrderStatus: [orderId, drink, status]
 
   # View slice read by a screen: the barista's queue.
   - ShowQueue:
-      view: *OrderQueue
+      view: OrderQueue
       readBy:
         - screen: BaristaTablet
       specs:
@@ -83,24 +82,20 @@ slices:
                   - { orderId: o-2, drink: Mocha, customerName: Grace }
 
   - CompleteOrder:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: BaristaTablet }
       command:
         props: { orderId: g }
-      event:
-        name: OrderCompleted
-        props: { orderId: g, completedAt: dt }
+      events:
+        - OrderCompleted: { orderId: g, completedAt: dt }
       views:
-        - <<: *OrderQueue
-          orders: x
-        - <<: *OrderStatus
-          status: x
-        - <<: *ReadyToNotify
-          pending: x
+        - OrderQueue: [orders]
+        - OrderStatus: [status]
+        - ReadyToNotify: [pending]
 
   # View slice read by two screens, used by two different actors.
   - TrackOrder:
-      view: *OrderStatus
+      view: OrderStatus
       readBy:
         - screen: OrderStatusPage
         - screen: BaristaTablet
@@ -114,9 +109,9 @@ slices:
 
   # View slice read by an automation: its to-do list.
   - NotifyTodo:
-      view: *ReadyToNotify
+      view: ReadyToNotify
       readBy:
-        - wfe: *ReadyNotifier
+        - automation: ReadyNotifier
       specs:
         - name: lists completed orders whose customer has not been texted
           given:
@@ -128,14 +123,12 @@ slices:
                   - { orderId: o-1, phone: "+1 555 0100" }
 
   - NotifyCustomer:
-      agg: *Order
-      trigger: { wfe: *ReadyNotifier }
+      agg: OrderAgg
+      trigger: { automation: ReadyNotifier }
       command:
         name: SendReadyText
         props: { orderId: g, phone: s }
-      event:
-        name: CustomerNotified
-        props: { orderId: g, notifiedAt: dt }
+      events:
+        - CustomerNotified: { orderId: g, notifiedAt: dt }
       views:
-        - <<: *ReadyToNotify
-          pending: x
+        - ReadyToNotify: [pending]

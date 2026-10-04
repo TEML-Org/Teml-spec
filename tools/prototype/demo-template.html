@@ -1,4 +1,4 @@
-<title>TEML v-alpha-002 Demos</title>
+<title>TEML v-alpha-003 Demos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -25,11 +25,11 @@ __CSS__
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">teml.org/v-alpha-002 · draft for review (PR #4)</div>
-    <h1>What's new in v-alpha-002</h1>
-    <p class="lede">Each tab shows one new feature as a small model, then everything together in the hotel model. Every board is drawn directly from the TEML shown under it. Click any sticky or slice heading for its details and Given/When/Then specs.</p>
+    <div class="eyebrow">teml.org/v-alpha-003 · draft for review</div>
+    <h1>TEML v-alpha-003: a smaller language</h1>
+    <p class="lede">Each tab shows one feature as a small model, then everything together in the hotel model. Every board is drawn directly from the TEML shown under it. Click any sticky or slice heading for its details and Given/When/Then specs.</p>
   </header>
-  <div class="note-box"><p><b>Revised after review:</b> external systems no longer put events into our model. A system calls our API (for example, a webhook), which issues one of our commands. The events that follow are ours and can trigger our workflows.</p></div>
+  <div class="note-box"><p><b>What changed:</b> references are plain names (no <code>&amp;</code>, <code>*</code> or <code>&lt;&lt;</code>), view updates are <code>- View: [props]</code>, every slice has an <code>events</code> list, <code>wfes</code> are now <code>automations</code>, and an automation always works from a to-do view. Compare the TEML under each board with v-alpha-002.</p></div>
   <nav class="tabs" role="tablist" aria-label="Demos" id="tabs"></nav>
   <div id="panels"></div>
 </div>

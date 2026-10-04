@@ -1,9 +1,9 @@
-# yaml-language-server: $schema=../../schema/teml-alpha-002.schema.json
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
 #
 # Feature demo: actors and screens (spec §10).
 # Each actor gets a swimlane at the top of the board, and their screens sit in it.
 
-apiVersion: teml.org/v-alpha-002
+apiVersion: teml.org/v-alpha-003
 metadata:
   name: Coffee shop orders
   description: A customer orders at a kiosk; a barista makes the drink.
@@ -21,7 +21,7 @@ screens:
       actor: Barista
 
 aggs:
-  - OrderAgg: &Order
+  - OrderAgg:
       orderId: g
       drink: s
       customerName: s
@@ -29,28 +29,25 @@ aggs:
 
 slices:
   - PlaceOrder:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: OrderKiosk }          # the Customer's screen
       command:
         props: { orderId: g, drink: s, customerName: s }
-      event:
-        name: OrderPlaced
-        props: { orderId: g, drink: s, customerName: s }
+      events:
+        - OrderPlaced: { orderId: g, drink: s, customerName: s }
 
   - StartOrder:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: BaristaTablet }       # the Barista's screen
       command:
         props: { orderId: g }
-      event:
-        name: OrderStarted
-        props: { orderId: g, startedAt: dt }
+      events:
+        - OrderStarted: { orderId: g, startedAt: dt }
 
   - CompleteOrder:
-      agg: *Order
+      agg: OrderAgg
       trigger: { screen: BaristaTablet }       # same screen, another command
       command:
         props: { orderId: g }
-      event:
-        name: OrderCompleted
-        props: { orderId: g, completedAt: dt }
+      events:
+        - OrderCompleted: { orderId: g, completedAt: dt }

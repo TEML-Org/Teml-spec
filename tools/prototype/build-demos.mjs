@@ -28,21 +28,21 @@ const DEMOS = [
   {
     key: "systems", tab: "External system", file: ex("features/external-system.teml.yaml"), select: "ConfirmPayment",
     title: "An external system calls our API",
-    intro: "The payment provider can't add events to our model. Its webhook calls our API, which issues our Confirm Payment command. Payment Confirmed is our own event, and it triggers our Receipt Sender automation.",
+    intro: "The payment provider can't add events to our model. Its webhook calls our API, which issues our Confirm Payment command. Payment Confirmed is our own event, and it puts the order on our Receipt Sender automation's to-do list.",
     notice: [
       "<b>Payment Provider</b> has its own lane at the top, beside the Shopper, because it plays the same role: it starts one of our commands from outside.",
-      "The dashed arrow from <b>Payment Confirmed</b> to <b>Receipt Sender</b>: our event triggers our workflow.",
+      "<b>Payment Confirmed</b> updates <b>Receipts To Send</b>. In <b>Receipt Todo</b>, the Receipt Sender reads that to-do list, then issues Send Receipt.",
       "<b>Confirm Payment</b>'s specs use When / Then like any user command, including an error case.",
     ],
   },
   {
     key: "hotel", tab: "Full model: hotel", file: ex("hotel.teml.yaml"), select: "RecordPayment",
     title: "Everything together: the hotel",
-    intro: "The classic Event Modeling hotel example, using every new feature: four actors, four view slices, two automations, and a payment provider that calls our API.",
+    intro: "The classic Event Modeling hotel example, with four actors, five view slices, two automations, and a payment provider that calls our API.",
     notice: [
       "Actor lanes for <b>Guest</b>, <b>Manager</b>, <b>Front Desk</b> and <b>Housekeeping</b>, with the <b>Payment Provider</b> beside them.",
-      "View slices: <b>Browse Rooms</b>, <b>Payment Todo</b> (an automation's to-do list), <b>Show Bookings</b> (two screens) and <b>Cleaning List</b>.",
-      "<b>Record Payment</b> is triggered by the provider's webhook. Its <b>Booking Confirmed</b> event triggers the Confirmation Emailer.",
+      "View slices: <b>Browse Rooms</b>, <b>Payment Todo</b> and <b>Confirmation Todo</b> (automations' to-do lists), <b>Show Bookings</b> (two screens) and <b>Cleaning List</b>.",
+      "<b>Record Payment</b> is triggered by the provider's webhook. Its events update <b>Confirmations To Send</b>, which the Confirmation Emailer works from.",
     ],
   },
 ];
