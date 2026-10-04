@@ -25,6 +25,8 @@ npm run board      # writes out/hotel-board.html; open it in a browser
 npm run demos      # writes out/demos.html, one tab per feature
 ```
 
+`validate` and `check` exit non-zero when a file has errors (sketch warnings don't count). CI runs both on every PR (`.github/workflows/check.yml`).
+
 To draw another model, run `node build-board.mjs path/to/model.teml.yaml out/model.html [SliceToSelect]`.
 
 ## Board layout

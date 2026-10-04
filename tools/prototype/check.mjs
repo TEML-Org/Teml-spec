@@ -16,7 +16,7 @@ for (const file of process.argv.slice(2)) {
   const out = []; const err = m => out.push("  ERROR " + m); const warn = m => out.push("  warn  " + m);
   let js;
   try { js = YAML.parse(fs.readFileSync(file, "utf8")) ?? {}; }
-  catch (e) { console.log(`${file.split("/").pop()}: 1 errors, 0 warnings\n  ERROR YAML ${e.message.split("\n")[0]}`); continue; }
+  catch (e) { console.log(`${file.split("/").pop()}: 1 errors, 0 warnings\n  ERROR YAML ${e.message.split("\n")[0]}`); process.exitCode = 1; continue; }
   const compliant = js.apiVersion !== undefined;
   const E = compliant ? err : warn;
   if (compliant && !VERSIONS.includes(js.apiVersion)) err(`E1 unsupported apiVersion ${js.apiVersion}`);
@@ -169,4 +169,5 @@ for (const file of process.argv.slice(2)) {
 
   console.log(`${file.split("/").pop()} (${compliant ? "compliant" : "sketch"}): ${out.filter(l => l.includes("ERROR")).length} errors, ${out.filter(l => l.includes("warn")).length} warnings`);
   out.forEach(l => console.log(l));
+  if (out.some(l => l.includes("ERROR"))) process.exitCode = 1;
 }

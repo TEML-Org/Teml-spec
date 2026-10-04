@@ -7,8 +7,10 @@ const validate = ajv.compile(JSON.parse(fs.readFileSync(schemaPath, "utf8")));
 for (const f of files) {
   let doc;
   try { doc = YAML.parse(fs.readFileSync(f, "utf8"), { version: "1.2" }); }
-  catch (e) { console.log("INVALID", f, "\n    YAML", e.message.split("\n")[0]); continue; }
+  catch (e) { console.log("INVALID", f, "\n    YAML", e.message.split("\n")[0]); process.exitCode = 1; continue; }
   const ok = validate(doc);
   console.log(ok ? "VALID  " : "INVALID", f);
-  if (!ok) for (const e of validate.errors.slice(0, 6)) console.log("   ", e.instancePath, e.message, JSON.stringify(e.params));
+  if (ok) continue;
+  process.exitCode = 1;
+  for (const e of validate.errors.slice(0, 6)) console.log("   ", e.instancePath, e.message, JSON.stringify(e.params));
 }
