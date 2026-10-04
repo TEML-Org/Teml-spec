@@ -46,8 +46,7 @@ slices:
       agg: UserAgg
       trigger: { screen: AddUserForm }
       command:
-        name: AddUser   # optional: defaults to the slice name
-        props:
+        AddUser:
           id: g
           firstName: s
           lastName: s
@@ -119,7 +118,7 @@ slices:
       agg: UserAgg
       trigger: { automation: WelcomeEmailer }
       command:
-        props:
+        SendWelcomeEmail:
           id: g
           email: s
       events:

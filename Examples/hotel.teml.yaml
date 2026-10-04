@@ -133,7 +133,7 @@ slices:
       agg: GuestAgg
       trigger: { screen: SignUpPage }
       command:
-        props:
+        RegisterGuest:
           guestId: g
           name: s
           email: s
@@ -163,7 +163,7 @@ slices:
       agg: RoomAgg
       trigger: { screen: RoomManagement }
       command:
-        props:
+        AddRoom:
           roomNumber: s
           roomType: RoomType
           nightlyRate: dec
@@ -198,7 +198,7 @@ slices:
       agg: BookingAgg
       trigger: { screen: RoomSearch }
       command:
-        props:
+        BookRoom:
           bookingId: g
           guestId: g
           roomNumber: s
@@ -259,7 +259,7 @@ slices:
       agg: BookingAgg
       trigger: { automation: PaymentRequester }
       command:
-        props:
+        RequestPayment:
           bookingId: g
           amount: dec
       events:
@@ -289,7 +289,7 @@ slices:
       agg: BookingAgg
       trigger: { system: PaymentProvider }
       command:
-        props:
+        RecordPayment:
           bookingId: g
           amount: dec
           providerReference: s
@@ -341,8 +341,7 @@ slices:
       agg: BookingAgg
       trigger: { automation: ConfirmationEmailer }
       command:
-        name: SendConfirmationEmail
-        props:
+        SendConfirmationEmail:
           bookingId: g
       events:
         - ConfirmationEmailSent:
@@ -384,7 +383,7 @@ slices:
       agg: BookingAgg
       trigger: { screen: MyBookings }
       command:
-        props:
+        CancelBooking:
           bookingId: g
           reason: s?
       events:
@@ -411,7 +410,7 @@ slices:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
       command:
-        props:
+        CheckIn:
           bookingId: g
       events:
         - GuestCheckedIn:
@@ -434,7 +433,7 @@ slices:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
       command:
-        props:
+        CheckOut:
           bookingId: g
       events:
         - GuestCheckedOut:
@@ -458,7 +457,7 @@ slices:
       agg: RoomAgg
       trigger: { screen: HousekeepingTablet }
       command:
-        props:
+        MarkRoomCleaned:
           roomNumber: s
       events:
         - RoomCleaned:
