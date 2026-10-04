@@ -47,7 +47,7 @@ slices:
       agg: OrderAgg
       trigger: { screen: CheckoutPage }
       command:
-        props: { orderId: g, amount: dec }
+        Checkout: { orderId: g, amount: dec }
       events:
         - CheckoutStarted: { orderId: g, amount: dec }
       views:
@@ -58,7 +58,7 @@ slices:
       agg: OrderAgg
       trigger: { system: PaymentProvider }
       command:
-        props: { orderId: g, amount: dec, providerReference: s }
+        ConfirmPayment: { orderId: g, amount: dec, providerReference: s }
       events:
         - PaymentConfirmed: { orderId: g, amount: dec, providerReference: s }
       views:
@@ -95,7 +95,7 @@ slices:
       agg: OrderAgg
       trigger: { automation: ReceiptSender }
       command:
-        props: { orderId: g }
+        SendReceipt: { orderId: g }
       events:
         - ReceiptSent: { orderId: g, sentAt: dt }
       views:

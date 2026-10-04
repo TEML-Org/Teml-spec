@@ -21,7 +21,8 @@ export function boardData(file) {
     const common = { name, status: b.status ?? null, story: b.story ?? null, description: b.description ?? null, specs: b.specs ?? [] };
     if (b.view) return { kind: "view", view: b.view, readBy: (b.readBy ?? []).map(one), ...common };
     const c = b.command;
-    const command = { name: typeof c === "string" ? c : c?.name ?? name, props: typeof c === "object" ? c.props ?? null : null, inferred: c === undefined };
+    const [cname, cprops] = c === undefined ? [name, null] : entry(c);
+    const command = { name: cname, props: cprops, inferred: c === undefined };
     const events = (b.events ?? []).map(e => { const [n, props] = entry(e); return { name: n, props }; });
     const views = (b.views ?? []).map(v => { const [n, touched] = entry(v); return { name: n, touched: touched ?? [] }; });
     return { kind: "change", agg: b.agg ?? null, trigger: b.trigger ? one(b.trigger) : null, command, events, views, ...common };

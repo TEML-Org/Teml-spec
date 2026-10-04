@@ -98,10 +98,12 @@ for (const file of process.argv.slice(2)) {
       else E(`E5 ${where}: expected one of screen:, automation: or system:`);
     }
     const c = s.command;
-    const cname = typeof c === "string" ? c : isMap(c) && c.name ? String(c.name) : sname;
-    commands.set(cname, isMap(c) ? propKeys(c.props) : null);
+    const ce = c === undefined ? [sname, null] : entry(c);
+    if (!ce) E(`E5 ${w}.command: expected a command name or CommandName: props`);
+    const [cname, cprops] = ce ?? [sname, null];
+    commands.set(cname, propKeys(cprops));
     kinds.set(sname, { kind: byAutomation ? "automation" : "change", issuer: byAutomation, command: cname });
-    if (isMap(c) && c.props !== undefined) checkProps(c.props, `${w}.command.props`);
+    if (cprops !== null) checkProps(cprops, `${w}.command.${cname}`);
 
     for (const [i, ev] of (Array.isArray(s.events) ? s.events : []).entries()) {
       const e = entry(ev);

@@ -58,7 +58,7 @@ slices:
       agg: OrderAgg
       trigger: { screen: OrderKiosk }
       command:
-        props: { orderId: g, drink: s, customerName: s, phone: s }
+        PlaceOrder: { orderId: g, drink: s, customerName: s, phone: s }
       events:
         - OrderPlaced: { orderId: g, drink: s, customerName: s, phone: s }
       views:
@@ -85,7 +85,7 @@ slices:
       agg: OrderAgg
       trigger: { screen: BaristaTablet }
       command:
-        props: { orderId: g }
+        CompleteOrder: { orderId: g }
       events:
         - OrderCompleted: { orderId: g, completedAt: dt }
       views:
@@ -126,8 +126,7 @@ slices:
       agg: OrderAgg
       trigger: { automation: ReadyNotifier }
       command:
-        name: SendReadyText
-        props: { orderId: g, phone: s }
+        SendReadyText: { orderId: g, phone: s }
       events:
         - CustomerNotified: { orderId: g, notifiedAt: dt }
       views:

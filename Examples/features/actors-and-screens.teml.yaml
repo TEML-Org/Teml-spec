@@ -32,7 +32,7 @@ slices:
       agg: OrderAgg
       trigger: { screen: OrderKiosk }          # the Customer's screen
       command:
-        props: { orderId: g, drink: s, customerName: s }
+        PlaceOrder: { orderId: g, drink: s, customerName: s }
       events:
         - OrderPlaced: { orderId: g, drink: s, customerName: s }
 
@@ -40,7 +40,7 @@ slices:
       agg: OrderAgg
       trigger: { screen: BaristaTablet }       # the Barista's screen
       command:
-        props: { orderId: g }
+        StartOrder: { orderId: g }
       events:
         - OrderStarted: { orderId: g, startedAt: dt }
 
@@ -48,6 +48,6 @@ slices:
       agg: OrderAgg
       trigger: { screen: BaristaTablet }       # same screen, another command
       command:
-        props: { orderId: g }
+        CompleteOrder: { orderId: g }
       events:
         - OrderCompleted: { orderId: g, completedAt: dt }
