@@ -1,5 +1,6 @@
 # Validates the compliant examples against the schema, so a broken one can't be merged.
-# Semantic checks (spec §14) run in TEML-Org/teml-tools, against a pinned commit of this repo.
+# Then runs the semantic checks (spec §14) and the tools' tests from the private
+# mtalcott-perp-comp/teml-tools against this commit, using the TEML_TOOLS_TOKEN secret.
 name: Check examples
 
 on:
@@ -25,3 +26,36 @@ jobs:
           --strict=true --strict-types=false --strict-required=false --allow-matching-properties
           -s schema/teml-alpha-003.schema.json
           -d Examples/user-compliant.teml.yaml -d Examples/hotel.teml.yaml -d "Examples/features/*.yaml"
+
+  # teml-tools is private, so it is read with a fine-grained token (Contents: read, that repo only).
+  # Without the secret (as on PRs from forks) the job is skipped with a notice.
+  semantic:
+    runs-on: ubuntu-24.04
+    env:
+      TEML_TOOLS_TOKEN: ${{ secrets.TEML_TOOLS_TOKEN }}
+    steps:
+      - name: Skip without the TEML_TOOLS_TOKEN secret
+        if: env.TEML_TOOLS_TOKEN == ''
+        run: echo "::notice::TEML_TOOLS_TOKEN is not available, so the semantic checks were skipped."
+      - uses: actions/checkout@v7
+        if: env.TEML_TOOLS_TOKEN != ''
+        with:
+          repository: mtalcott-perp-comp/teml-tools
+          token: ${{ env.TEML_TOOLS_TOKEN }}
+          path: tools
+      - uses: actions/checkout@v7
+        if: env.TEML_TOOLS_TOKEN != ''
+        with:
+          path: tools/spec
+      - uses: actions/setup-node@v7
+        if: env.TEML_TOOLS_TOKEN != ''
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - if: env.TEML_TOOLS_TOKEN != ''
+        working-directory: tools
+        run: |
+          npm ci
+          npm run check
+          npm test
