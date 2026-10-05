@@ -1,9 +1,0 @@
-# expect: YAML line 9
-# Not valid YAML: a flow mapping that is never closed.
-apiVersion: teml.org/v-alpha-003
-metadata:
-  name: YamlSyntax
-
-aggs:
-  - Room: { roomId: g
-  - Booking: { bookingId: g }

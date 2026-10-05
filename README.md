@@ -43,7 +43,8 @@ You can write TEML as a quick **sketch** (no header, untyped props) or as a **co
 | [`Examples/user-compliant.teml.yaml`](Examples/user-compliant.teml.yaml) | The user example as a compliant document |
 | [`Examples/hotel.teml.yaml`](Examples/hotel.teml.yaml) | The classic Event Modeling hotel example: actors, screens, view slices, a payment provider that calls our API, and specs |
 | [`Examples/features/`](Examples/features/) | Small examples of actors and screens, view slices, and an external system |
-| [`tools/prototype/`](tools/prototype/) | Prototype checker and board renderer |
+
+The tools (the checker, the `<teml-board>` web component and the coming viewer) moved to their own repository, TEML-Org/teml-tools, on 2026-10-05. It is private for now; the boards they draw are at [teml.org/demos](https://teml.org/demos/).
 
 ### Editor support
 

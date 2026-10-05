@@ -1,4 +1,5 @@
-# Validates and checks every example, so a broken one can't be merged.
+# Validates the compliant examples against the schema, so a broken one can't be merged.
+# Semantic checks (spec §14) run in TEML-Org/teml-tools, against a pinned commit of this repo.
 name: Check examples
 
 on:
@@ -12,18 +13,15 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: tools/prototype
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: tools/prototype/package-lock.json
-      - run: npm ci
-      - run: npm run validate
-      - run: npm run check
-      - run: npm test
-      - run: npm run build
+      - run: npm install --no-save --no-package-lock ajv-cli@5.0.0 ajv-formats@3.0.1
+      - name: Validate examples against the schema
+        run: >-
+          npx ajv validate --spec=draft2020 -c ajv-formats --all-errors
+          --strict=true --strict-types=false --strict-required=false --allow-matching-properties
+          -s schema/teml-alpha-003.schema.json
+          -d Examples/user-compliant.teml.yaml -d Examples/hotel.teml.yaml -d "Examples/features/*.yaml"
