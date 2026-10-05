@@ -29,31 +29,36 @@ jobs:
 
   # teml-tools is private, so it is read with a fine-grained token (Contents: read, that repo only).
   # Without the secret (as on PRs from forks) the job is skipped with a notice.
+  # The token is used only by the checkout and isn't kept, so npm install scripts can't read it.
   semantic:
     runs-on: ubuntu-24.04
-    env:
-      TEML_TOOLS_TOKEN: ${{ secrets.TEML_TOOLS_TOKEN }}
     steps:
-      - name: Skip without the TEML_TOOLS_TOKEN secret
-        if: env.TEML_TOOLS_TOKEN == ''
-        run: echo "::notice::TEML_TOOLS_TOKEN is not available, so the semantic checks were skipped."
+      - id: token
+        run: |
+          if [ "${{ secrets.TEML_TOOLS_TOKEN != '' }}" = true ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::TEML_TOOLS_TOKEN is not available, so the semantic checks were skipped."
+          fi
       - uses: actions/checkout@v7
-        if: env.TEML_TOOLS_TOKEN != ''
+        if: steps.token.outputs.present
         with:
           repository: mtalcott-perp-comp/teml-tools
-          token: ${{ env.TEML_TOOLS_TOKEN }}
+          token: ${{ secrets.TEML_TOOLS_TOKEN }}
+          persist-credentials: false
           path: tools
       - uses: actions/checkout@v7
-        if: env.TEML_TOOLS_TOKEN != ''
+        if: steps.token.outputs.present
         with:
+          persist-credentials: false
           path: tools/spec
       - uses: actions/setup-node@v7
-        if: env.TEML_TOOLS_TOKEN != ''
+        if: steps.token.outputs.present
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: tools/package-lock.json
-      - if: env.TEML_TOOLS_TOKEN != ''
+      - if: steps.token.outputs.present
         working-directory: tools
         run: |
           npm ci
