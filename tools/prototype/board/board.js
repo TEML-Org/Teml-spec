@@ -1,259 +1,318 @@
-// Event Modeling board renderer for TEML board data (see board-data.mjs).
-// mountBoard(root, M) draws into `root`, which must contain .scroller > .board,
-// .detail, and optionally .zoom controls. Several boards can share one page.
-const TEML_BOARD = (() => {
-  const NOTE_W = 140, NOTE_H = 54, GAP = 12, PAD = 16, LABEL_W = 136, SUB_GAP = 40, HEAD_H = 64;
-  const COL_W = NOTE_W * 2 + SUB_GAP + 44;
-  const TYPE_NAMES = { g: "unique identifier", s: "text", int: "whole number", dec: "decimal", bool: "true / false",
-    date: "calendar date", dt: "date and time", any: "unspecified" };
-  const GEAR = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.4 1l.4 1.9c.4.1.8.3 1.1.5l1.7-1 1.4 1.4-1 1.7c.2.3.4.7.5 1.1l1.9.4v2l-1.9.4c-.1.4-.3.8-.5 1.1l1 1.7-1.4 1.4-1.7-1c-.3.2-.7.4-1.1.5L9.4 15h-2l-.4-1.9c-.4-.1-.8-.3-1.1-.5l-1.7 1-1.4-1.4 1-1.7c-.2-.3-.4-.7-.5-1.1L1.6 9V7l1.9-.4c.1-.4.3-.8.5-1.1l-1-1.7 1.4-1.4 1.7 1c.3-.2.7-.4 1.1-.5L7.6 1h1.8zM8.5 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>';
-  const PLUG = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 1h1.5v3.5h3V1H11v3.5h1.5V8a4.5 4.5 0 01-3.75 4.44V15h-1.5v-2.56A4.5 4.5 0 013.5 8V4.5H5V1z"/></svg>';
-  const KIND = { screen: "Screen", automation: "Automation", system: "API call", cmd: "Command", view: "Read model", evt: "Event" };
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const spaced = n => String(n).replace(/([a-z])([A-Z])/g, "$1 $2");
-  let uid = 0;
+// Event Modeling board renderer for the model from teml-core.mjs (see the README).
+// layout(M) places every sticky and has no DOM access, so it can be tested in Node.
+// mountBoard(root, M, opts) draws into `root`, which must contain .scroller > .board,
+// .detail, and optionally .zoom controls. <teml-board> (teml-board.js) wraps it.
+const NOTE_W = 140, NOTE_H = 54, GAP = 12, PAD = 16, LABEL_W = 136, SUB_GAP = 40, HEAD_H = 64;
+const COL_W = NOTE_W * 2 + SUB_GAP + 44;
+const TYPE_NAMES = { g: "unique identifier", s: "text", int: "whole number", dec: "decimal", bool: "true / false",
+  date: "calendar date", dt: "date and time", any: "unspecified" };
+const GEAR = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.4 1l.4 1.9c.4.1.8.3 1.1.5l1.7-1 1.4 1.4-1 1.7c.2.3.4.7.5 1.1l1.9.4v2l-1.9.4c-.1.4-.3.8-.5 1.1l1 1.7-1.4 1.4-1.7-1c-.3.2-.7.4-1.1.5L9.4 15h-2l-.4-1.9c-.4-.1-.8-.3-1.1-.5l-1.7 1-1.4-1.4 1-1.7c-.2-.3-.4-.7-.5-1.1L1.6 9V7l1.9-.4c.1-.4.3-.8.5-1.1l-1-1.7 1.4-1.4 1.7 1c.3-.2.7-.4 1.1-.5L7.6 1h1.8zM8.5 5.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>';
+const PLUG = '<svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 1h1.5v3.5h3V1H11v3.5h1.5V8a4.5 4.5 0 01-3.75 4.44V15h-1.5v-2.56A4.5 4.5 0 013.5 8V4.5H5V1z"/></svg>';
+const KIND = { screen: "Screen", automation: "Automation", system: "API call", cmd: "Command", view: "Read model", evt: "Event" };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const spaced = n => String(n).replace(/([a-z])([A-Z])/g, "$1 $2");
+const kindName = k => KIND[k] ?? spaced(k);
+let uid = 0;
 
-  function facts(M) {
-    const changes = M.slices.filter(s => s.kind === "change");
-    const n = [
-      [changes.length, "change slices"], [M.slices.length - changes.length, "view slices"],
-      [changes.reduce((a, s) => a + s.events.length, 0), "events"], [M.actors.length, "actors"], [M.systems.length, "external systems"],
-      [M.aggs.length, "aggregates"], [M.views.length, "read models"], [M.automations.length, "automations"],
-      [M.slices.reduce((a, s) => a + s.specs.length, 0), "specs"]];
-    return n.filter(([c]) => c > 0).map(([c, l]) => `<span><b>${c}</b> ${l}</span>`).join("");
+export function facts(M) {
+  const changes = M.slices.filter(s => s.kind === "change");
+  const n = [
+    [changes.length, "change slices"], [M.slices.length - changes.length, "view slices"],
+    [changes.reduce((a, s) => a + s.events.length, 0), "events"], [M.actors.length, "actors"], [M.systems.length, "external systems"],
+    [M.aggs.length, "aggregates"], [M.views.length, "read models"], [M.automations.length, "automations"],
+    [M.slices.reduce((a, s) => a + s.specs.length, 0), "specs"]];
+  return n.filter(([c]) => c > 0).map(([c, l]) => `<span><b>${c}</b> ${l}</span>`).join("");
+}
+
+// Notes and slices are identified by slice index, so names repeated across slices stay distinct.
+export function layout(M) {
+  const screenActor = new Map(M.screens.map(s => [s.name, s.actor]));
+  const actorLane = name => (screenActor.get(name) ? "actor:" + screenActor.get(name) : "screens");
+  const triggerLane = t => (t.kind === "automation" ? "automation" : t.kind === "system" ? "sys:" + t.name : actorLane(t.name));
+
+  // ---- placement: every note gets a lane and a sub-column, then stacks ----
+  const notes = [], edges = [];
+  const cols = M.slices.map(() => new Map());
+  const put = (n, lane, sub) => {
+    const key = lane + "|" + sub, c = cols[n.slice];
+    n.lane = lane; n.sub = sub; n.row = c.get(key) ?? 0; c.set(key, n.row + 1);
+    notes.push(n); return n;
+  };
+  M.slices.forEach((s, i) => {
+    if (s.kind === "view") {
+      const v = put({ id: `${i}:view`, kind: "view", name: s.view, slice: i, ref: { name: s.view, touched: [] } }, "mid", 0);
+      // Readers sit to the right of the read model: on the timeline the read model
+      // must exist before a screen can show it, so information flows left to right.
+      s.readBy.forEach((r, k) => edges.push({ a: v, b: put({ id: `${i}:read:${k}`, kind: r.kind, name: r.name, slice: i }, triggerLane(r), 1), t: "read" }));
+      return;
+    }
+    const trig = s.trigger ? put({ id: `${i}:trig`, kind: s.trigger.kind, name: s.trigger.name, slice: i }, triggerLane(s.trigger), 0) : null;
+    const cmd = put({ id: `${i}:cmd`, kind: "cmd", name: s.command.name, slice: i, inferred: s.command.inferred }, "mid", 0);
+    if (trig) edges.push({ a: trig, b: cmd, t: "down" });
+    const evs = s.events.map((e, k) => put({ id: `${i}:evt:${k}`, kind: "evt", name: e.name, slice: i, ev: e }, s.agg ? "agg:" + s.agg : "noagg", 0));
+    evs.forEach(e => edges.push({ a: cmd, b: e, t: "down" }));
+    const vs = s.views.map((v, k) => put({ id: `${i}:view:${k}`, kind: "view", name: v.name, slice: i, ref: v }, "mid", 1));
+    evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
+  });
+
+  // ---- lanes: declared ones in document order, then any a slice refers to without declaring ----
+  const laneIds = new Set(notes.map(n => n.lane)); laneIds.add("mid");
+  const lanes = [];
+  const rowsOf = lid => Math.max(1, ...cols.flatMap(c => [...c].filter(([k]) => k.startsWith(lid + "|")).map(([, v]) => v)));
+  const addLane = (lid, label, sub, undeclared) => laneIds.has(lid) && lanes.push({ id: lid, label, sub, rows: rowsOf(lid), undeclared });
+  const group = (prefix, declared, sub, name = n => n) => {
+    const known = new Set(declared.map(d => d.name));
+    declared.forEach(d => addLane(prefix + d.name, name(d.name), sub));
+    [...laneIds].filter(l => l.startsWith(prefix) && !known.has(l.slice(prefix.length)))
+      .forEach(l => addLane(l, name(l.slice(prefix.length)), sub + " · not declared", true));
+  };
+  group("actor:", M.actors, "Actor", spaced);
+  group("sys:", M.systems, "External system", spaced);
+  addLane("screens", "Screens", M.actors.length ? "No actor" : "User interface");
+  addLane("automation", "Automations", "No person involved");
+  addLane("mid", "Commands & read models", "");
+  group("agg:", M.aggs, "Events");
+  addLane("noagg", "No aggregate", "Events");
+  let y = HEAD_H;
+  for (const l of lanes) { l.y = y; l.h = l.rows * (NOTE_H + GAP) - GAP + PAD * 2; y += l.h; }
+  const W = LABEL_W + M.slices.length * COL_W + 16, H = y;
+  const laneY = new Map(lanes.map(l => [l.id, l.y]));
+  notes.forEach(n => {
+    const x0 = LABEL_W + n.slice * COL_W + 22;
+    n.x = n.sub ? x0 + NOTE_W + SUB_GAP : x0;
+    n.y = laneY.get(n.lane) + PAD + n.row * (NOTE_H + GAP);
+  });
+  return { notes, edges, lanes, W, H };
+}
+
+function path(e) {
+  const a = e.a, b = e.b;
+  if (e.t === "down") {
+    const x1 = a.x + NOTE_W / 2, y1 = a.y + NOTE_H, x2 = b.x + NOTE_W / 2, y2 = b.y - 3, d = Math.max(16, (y2 - y1) / 2);
+    return `M${x1},${y1} C${x1},${y1 + d} ${x2},${y2 - d} ${x2},${y2}`;
   }
+  // event -> read model, and read model -> reader: rightwards, then up into the target
+  const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 2, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3;
+  return `M${x1},${y1} C${x2},${y1} ${x2},${y1 + (y2 - y1) * 0.35} ${x2},${y2}`;
+}
 
-  function mountBoard(root, M, opts = {}) {
-    const id = ++uid;
-    const changes = M.slices.filter(s => s.kind === "change"), viewSlices = M.slices.filter(s => s.kind === "view");
-    const screenActor = new Map(M.screens.map(s => [s.name, s.actor]));
-    const actorLane = name => (screenActor.get(name) ? "actor:" + screenActor.get(name) : "screens");
-    const triggerLane = t => (t.kind === "automation" ? "automation" : t.kind === "system" ? "sys:" + t.name : actorLane(t.name));
+export function mountBoard(root, M, opts = {}) {
+  const id = ++uid, ac = new AbortController(), on = { signal: ac.signal };
+  const board = root.querySelector(".board"), detail = root.querySelector(".detail");
+  if (!M.slices.length) {
+    board.style.width = board.style.height = "";
+    board.innerHTML = `<p class="empty">This model has no slices yet. Add one under <code>slices:</code> to see the board.</p>`;
+    detail.innerHTML = "";
+    return { select() {}, destroy: () => ac.abort(), width: 0, zoom: () => opts.zoom, selected: () => null };
+  }
+  const { notes, edges, lanes, W, H } = layout(M);
+  const changes = M.slices.filter(s => s.kind === "change"), viewSlices = M.slices.filter(s => s.kind === "view");
+  const screenActor = new Map(M.screens.map(s => [s.name, s.actor]));
+  const sliceOf = s => M.slices.indexOf(s);
+  const laneLabel = new Map(lanes.map(l => [l.id, l.label]));
 
-    // ---- placement: every note gets a lane and a sub-column, then stacks ----
-    const notes = [], edges = [];
-    const cols = M.slices.map(() => new Map());
-    const put = (n, lane, sub) => {
-      const key = lane + "|" + sub, c = cols[n.slice];
-      n.lane = lane; n.sub = sub; n.row = c.get(key) ?? 0; c.set(key, n.row + 1);
-      notes.push(n); return n;
+  // ---- render ----
+  board.style.width = W + "px"; board.style.height = H + "px";
+  let html = "";
+  lanes.forEach(l => {
+    html += `<div class="lane${l.undeclared ? " undeclared" : ""}" style="top:${l.y}px;height:${l.h}px;width:${W}px"><div class="lane-label" style="width:${LABEL_W}px"><b>${esc(l.label)}</b>${l.sub ? `<small>${esc(l.sub)}</small>` : ""}</div></div>`;
+  });
+  M.slices.forEach((s, i) => {
+    const x = LABEL_W + i * COL_W;
+    if (i > 0) html += `<div class="divider" style="left:${x}px;height:${H}px"></div>`;
+    const status = s.status === "InDev" ? "In dev" : s.status;
+    const st = s.status ? `<span class="chip ${["Completed", "InDev"].includes(s.status) ? s.status : "other"}">${esc(status)}</span>` : "";
+    const nSpecs = s.specs.length ? `${s.specs.length} spec${s.specs.length > 1 ? "s" : ""}` : "";
+    const kind = s.kind === "view" ? `<span class="viewtag">View</span>` : "";
+    const label = [`${s.kind === "view" ? "View slice" : "Slice"} ${spaced(s.name)}`, status, nSpecs, s.story].filter(Boolean).join(", ");
+    html += `<button type="button" class="col-head" data-id="slice:${i}" tabindex="-1" aria-label="${esc(label)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${kind}${st}${nSpecs ? `<span>${nSpecs}</span>` : ""}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
+  });
+  notes.forEach(n => {
+    const k = n.kind === "automation" ? `${GEAR}${KIND.automation}` : n.kind === "system" ? `${PLUG}${KIND.system}` : n.inferred ? "Command · inferred" : esc(kindName(n.kind));
+    const label = `${n.inferred ? "Inferred command" : kindName(n.kind)} ${spaced(n.name)}, in ${laneLabel.get(n.lane)}, slice ${spaced(M.slices[n.slice].name)}`;
+    html += `<button type="button" class="note ${esc(n.kind)}${n.inferred ? " inferred" : ""}" data-id="${n.id}" data-slice="${n.slice}" tabindex="-1" aria-label="${esc(label)}" style="left:${n.x}px;top:${n.y}px;width:${NOTE_W}px;height:${NOTE_H}px"><span class="k" aria-hidden="true">${k}</span><span class="nm" aria-hidden="true">${esc(spaced(n.name))}</span></button>`;
+  });
+  html += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
+    <marker id="arrow-${id}" class="m-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arrowHot-${id}" class="m-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+    ${edges.map((e, i) => `<path class="edge" data-e="${i}" d="${path(e)}" marker-end="url(#arrow-${id})"/>`).join("")}</svg>`;
+  board.innerHTML = html;
+
+  // ---- zoom ----
+  let zoom = 0.8;
+  const zv = root.querySelector(".zoom output");
+  const setZoom = z => { zoom = Math.min(1.5, Math.max(0.3, Math.round(z * 100) / 100)); board.style.zoom = zoom; if (zv) zv.textContent = Math.round(zoom * 100) + "%"; };
+  root.querySelector(".zoom-in")?.addEventListener("click", () => setZoom(zoom + 0.1), on);
+  root.querySelector(".zoom-out")?.addEventListener("click", () => setZoom(zoom - 0.1), on);
+  root.querySelector(".zoom-fit")?.addEventListener("click", () => setZoom((root.querySelector(".scroller").clientWidth - 2) / W), on);
+  setZoom(opts.zoom ?? (window.innerWidth < 700 ? 0.6 : 0.8));
+
+  // ---- details ----
+  const viewDef = n => M.views.find(v => v.name === n)?.body;
+  const automationDef = n => M.automations.find(v => v.name === n)?.body;
+  const screenDef = n => M.screens.find(s => s.name === n);
+  const systemDef = n => M.systems.find(s => s.name === n);
+  // Object types from `types`, expanded inline so a view's rows are visible.
+  const objType = n => { const b = M.types.find(t => t.name === n)?.body; return b && !b.enum ? b : null; };
+  function propsHtml(p, touched, depth = 0) {
+    if (!p) return `<p class="muted" style="margin:0">Not specified.</p>`;
+    if (Array.isArray(p)) return `<ul class="props">${p.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
+    if (typeof p !== "object") return `<p style="margin:0">${esc(p)}</p>`;
+    const t = new Set(touched ?? []);
+    const line = (k, v) => {
+      const mark = t.has(k) ? ` class="touched" title="Touched by this slice"` : "";
+      if (typeof v === "string") {
+        const base = v.replace(/(\[\])*\??$/, ""), sub = depth < 3 && objType(base);
+        return `<li><span${mark}>${esc(k)}</span>: <span class="ty" title="${esc(TYPE_NAMES[base] ?? "named type")}">${esc(v)}</span>${sub ? propsHtml(sub, null, depth + 1) : ""}</li>`;
+      }
+      return `<li><span${mark}>${esc(k)}</span>:${propsHtml(v, null, depth + 1)}</li>`;
     };
-    M.slices.forEach((s, i) => {
-      if (s.kind === "view") {
-        const v = put({ id: `view:${s.name}:${s.view}`, kind: "view", name: s.view, slice: i, ref: { name: s.view, touched: [] } }, "mid", 0);
-        // Readers sit to the right of the read model: on the timeline the read model
-        // must exist before a screen can show it, so information flows left to right.
-        s.readBy.forEach((r, k) => edges.push({ a: v, b: put({ id: `read:${s.name}:${k}`, kind: r.kind, name: r.name, slice: i }, triggerLane(r), 1), t: "read" }));
-        return;
-      }
-      const trig = s.trigger ? put({ id: `trig:${s.name}`, kind: s.trigger.kind, name: s.trigger.name, slice: i }, triggerLane(s.trigger), 0) : null;
-      const cmd = put({ id: `cmd:${s.name}`, kind: "cmd", name: s.command.name, slice: i, inferred: s.command.inferred }, "mid", 0);
-      if (trig) edges.push({ a: trig, b: cmd, t: "down" });
-      const evs = s.events.map(e => put({ id: `evt:${e.name}`, kind: "evt", name: e.name, slice: i, ev: e }, "agg:" + s.agg, 0));
-      evs.forEach(e => edges.push({ a: cmd, b: e, t: "down" }));
-      const vs = s.views.map(v => put({ id: `view:${s.name}:${v.name}`, kind: "view", name: v.name, slice: i, ref: v }, "mid", 1));
-      evs.forEach(e => vs.forEach(v => edges.push({ a: e, b: v, t: "up" })));
-    });
-
-    // ---- lanes ----
-    const laneIds = new Set(notes.map(n => n.lane)); laneIds.add("mid");
-    const lanes = [];
-    const rowsOf = lid => Math.max(1, ...cols.flatMap(c => [...c].filter(([k]) => k.startsWith(lid + "|")).map(([, v]) => v)));
-    const addLane = (lid, label, sub) => laneIds.has(lid) && lanes.push({ id: lid, label, sub, rows: rowsOf(lid) });
-    M.actors.forEach(a => addLane("actor:" + a.name, spaced(a.name), "Actor"));
-    M.systems.forEach(s => addLane("sys:" + s.name, spaced(s.name), "External system"));
-    addLane("screens", "Screens", M.actors.length ? "No actor" : "User interface");
-    addLane("automation", "Automations", "No person involved");
-    addLane("mid", "Commands & read models", "");
-    M.aggs.forEach(a => addLane("agg:" + a.name, a.name, "Events"));
-    addLane("agg:null", "No aggregate", "Events");
-    let y = HEAD_H;
-    for (const l of lanes) { l.y = y; l.h = l.rows * (NOTE_H + GAP) - GAP + PAD * 2; y += l.h; }
-    const W = LABEL_W + M.slices.length * COL_W + 16, H = y;
-    const laneY = new Map(lanes.map(l => [l.id, l.y]));
-    notes.forEach(n => {
-      const x0 = LABEL_W + n.slice * COL_W + 22;
-      n.x = n.sub ? x0 + NOTE_W + SUB_GAP : x0;
-      n.y = laneY.get(n.lane) + PAD + n.row * (NOTE_H + GAP);
-    });
-
-    function path(e) {
-      const a = e.a, b = e.b;
-      if (e.t === "down") {
-        const x1 = a.x + NOTE_W / 2, y1 = a.y + NOTE_H, x2 = b.x + NOTE_W / 2, y2 = b.y - 3, d = Math.max(16, (y2 - y1) / 2);
-        return `M${x1},${y1} C${x1},${y1 + d} ${x2},${y2 - d} ${x2},${y2}`;
-      }
-      // event -> read model, and read model -> reader: rightwards, then up into the target
-      if (e.t === "up" || e.t === "read") {
-        const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 2, x2 = b.x + NOTE_W / 2, y2 = b.y + NOTE_H + 3;
-        return `M${x1},${y1} C${x2},${y1} ${x2},${y1 + (y2 - y1) * 0.35} ${x2},${y2}`;
-      }
-      const x1 = a.x + NOTE_W, y1 = a.y + NOTE_H / 3, x2 = b.x - 3, y2 = b.y + NOTE_H / 2;
-      return `M${x1},${y1} C${x1 + 120},${y1} ${x2 - 120},${y2} ${x2},${y2}`;
-    }
-
-    // ---- render ----
-    const board = root.querySelector(".board");
-    board.style.width = W + "px"; board.style.height = H + "px";
-    let html = "";
-    lanes.forEach(l => {
-      html += `<div class="lane" style="top:${l.y}px;height:${l.h}px;width:${W}px"><div class="lane-label" style="width:${LABEL_W}px"><b>${esc(l.label)}</b>${l.sub ? `<small>${esc(l.sub)}</small>` : ""}</div></div>`;
-    });
-    M.slices.forEach((s, i) => {
-      const x = LABEL_W + i * COL_W;
-      if (i > 0) html += `<div class="divider" style="left:${x}px;height:${H}px"></div>`;
-      const st = s.status ? `<span class="chip ${["Completed", "InDev"].includes(s.status) ? s.status : "other"}">${esc(s.status === "InDev" ? "In dev" : s.status)}</span>` : "";
-      const sp = s.specs.length ? `<span>${s.specs.length} spec${s.specs.length > 1 ? "s" : ""}</span>` : "";
-      const kind = s.kind === "view" ? `<span class="viewtag">View</span>` : "";
-      html += `<button type="button" class="col-head" data-id="slice:${esc(s.name)}" style="left:${x + 18}px;width:${COL_W - 36}px;height:${HEAD_H}px"><span class="sn">${esc(spaced(s.name))}</span><span class="meta">${kind}${st}${sp}${s.story ? `<span>${esc(s.story)}</span>` : ""}</span></button>`;
-    });
-    notes.forEach(n => {
-      const k = n.kind === "automation" ? `${GEAR}${KIND.automation}` : n.kind === "system" ? `${PLUG}${KIND.system}` : n.inferred ? "Command · inferred" : KIND[n.kind];
-      html += `<button type="button" class="note ${n.kind}${n.inferred ? " inferred" : ""}" data-id="${esc(n.id)}" data-slice="${n.slice}" style="left:${n.x}px;top:${n.y}px;width:${NOTE_W}px;height:${NOTE_H}px"><span class="k">${k}</span><span class="nm">${esc(spaced(n.name))}</span></button>`;
-    });
-    html += `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs>
-      <marker id="arrow-${id}" class="m-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
-      <marker id="arrowHot-${id}" class="m-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
-      ${edges.map((e, i) => `<path class="edge" data-e="${i}" d="${path(e)}" marker-end="url(#arrow-${id})"/>`).join("")}</svg>`;
-    board.innerHTML = html;
-
-    // ---- zoom ----
-    let zoom = 0.8;
-    const zv = root.querySelector(".zoom output");
-    const setZoom = z => { zoom = Math.min(1.5, Math.max(0.3, Math.round(z * 100) / 100)); board.style.zoom = zoom; if (zv) zv.textContent = Math.round(zoom * 100) + "%"; };
-    root.querySelector(".zoom-in")?.addEventListener("click", () => setZoom(zoom + 0.1));
-    root.querySelector(".zoom-out")?.addEventListener("click", () => setZoom(zoom - 0.1));
-    root.querySelector(".zoom-fit")?.addEventListener("click", () => setZoom((root.querySelector(".scroller").clientWidth - 2) / W));
-    setZoom(opts.zoom ?? (window.innerWidth < 700 ? 0.6 : 0.8));
-
-    // ---- details ----
-    const viewDef = n => M.views.find(v => v.name === n)?.body;
-    const automationDef = n => M.automations.find(v => v.name === n)?.body;
-    const screenDef = n => M.screens.find(s => s.name === n);
-    const systemDef = n => M.systems.find(s => s.name === n);
-    // Object types from `types`, expanded inline so a view's rows are visible.
-    const objType = n => { const b = M.types.find(t => t.name === n)?.body; return b && !b.enum ? b : null; };
-    function propsHtml(p, touched, depth = 0) {
-      if (!p) return `<p class="muted" style="margin:0">Not specified.</p>`;
-      if (Array.isArray(p)) return `<ul class="props">${p.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
-      const t = new Set(touched ?? []);
-      const line = (k, v) => {
-        const mark = t.has(k) ? ` class="touched" title="Touched by this slice"` : "";
-        if (typeof v === "string") {
-          const base = v.replace(/(\[\])*\??$/, ""), sub = depth < 3 && objType(base);
-          return `<li><span${mark}>${esc(k)}</span>: <span class="ty" title="${esc(TYPE_NAMES[base] ?? "named type")}">${esc(v)}</span>${sub ? propsHtml(sub, null, depth + 1) : ""}</li>`;
-        }
-        return `<li><span${mark}>${esc(k)}</span>:${propsHtml(v, null, depth + 1)}</li>`;
-      };
-      return `<ul class="props">${Object.entries(p).map(([k, v]) => line(k, v)).join("")}</ul>`;
-    }
-    const allEvents = new Set(changes.flatMap(s => s.events.map(e => e.name)));
-    const allCmds = new Set(changes.map(s => s.command.name)), allViews = new Set(M.views.map(v => v.name));
-    const val = v => Array.isArray(v) ? `[${v.map(val).join(", ")}]`
-      : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${k}: ${val(x)}`).join(", ")} }` : String(v);
-    function inst({ name: n, data }) {
-      if (n === "error") return `<span class="inst err">error: <b>${esc(data)}</b></span>`;
-      const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : allViews.has(n) ? "view" : "";
-      return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${data && typeof data === "object" ? " " + esc(val(data)) : ""}</span>`;
-    }
-    function specsHtml(s) {
-      if (!s.specs.length) return `<p class="muted" style="margin:0">No specs for this slice.</p>`;
-      return s.specs.map(sp => `<div class="spec"><b>${esc(sp.name)}</b><div class="gwt">
-        <span>Given</span><div class="insts">${sp.given.length ? sp.given.map(inst).join("") : `<span class="inst none">nothing yet</span>`}</div>
-        ${sp.when ? `<span>When</span><div class="insts">${inst(sp.when)}</div>` : ""}
-        <span>Then</span><div class="insts">${sp.then.length ? sp.then.map(inst).join("") : `<span class="inst none">nothing happens</span>`}</div></div></div>`).join("");
-    }
-    const sel = (nid, label) => `<button type="button" class="link" data-go="${esc(nid)}">${esc(label)}</button>`;
-    const who = name => (screenActor.get(name) ? ` <span class="muted">(${esc(spaced(screenActor.get(name)))})</span>` : "");
-    const triggerText = (t, nid) => t.kind === "automation" ? `Automation ${sel(nid, spaced(t.name))}`
-      : t.kind === "system" ? `External system ${sel(nid, spaced(t.name))} <span class="muted">(calls our API)</span>`
-      : `Screen ${sel(nid, spaced(t.name))}${who(t.name)}`;
-    function sliceSummary(s) {
-      const head = `<h2><span class="kind slice">${s.kind === "view" ? "View slice" : "Slice"}</span>${esc(spaced(s.name))}</h2>`;
-      const meta = `<dt>Status</dt><dd>${esc(s.status ?? "—")}</dd>${s.story ? `<dt>Story</dt><dd>${esc(s.story)}</dd>` : ""}`;
-      if (s.kind === "view") return `<div class="panel">${head}<dl class="kv">${meta}<dt>Read model</dt><dd>${sel(`view:${s.name}:${s.view}`, spaced(s.view))}</dd>
-          <dt>Read by</dt><dd>${s.readBy.map((r, k) => triggerText(r, `read:${s.name}:${k}`)).join("<br>") || "—"}</dd></dl><div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
-      return `<div class="panel">${head}<dl class="kv">${meta}
-        <dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Trigger</dt><dd>${s.trigger ? triggerText(s.trigger, "trig:" + s.name) : '<span class="muted">Unspecified</span>'}</dd>
-        <dt>Command</dt><dd>${sel("cmd:" + s.name, spaced(s.command.name))}${s.command.inferred ? ' <span class="muted">(inferred from the slice name)</span>' : ""}</dd>
-        <dt>Event${s.events.length > 1 ? "s" : ""}</dt><dd>${s.events.map(e => sel("evt:" + e.name, spaced(e.name))).join(", ")}</dd>
-        <dt>Updates</dt><dd>${s.views.map(v => sel(`view:${s.name}:${v.name}`, spaced(v.name))).join(", ") || "—"}</dd></dl>
-        <div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
-    }
-    function elementPanel(nid) {
-      const n = notes.find(x => x.id === nid), s = M.slices[n.slice];
-      if (n.kind === "cmd") return `<div class="panel"><h2><span class="kind cmd">Command</span>${esc(spaced(n.name))}</h2>
-        <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd></dl><div><h3>Props</h3>${propsHtml(s.command.props)}</div></div>`;
-      if (n.kind === "evt") return `<div class="panel"><h2><span class="kind evt">Event</span>${esc(spaced(n.name))}</h2>
-        <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd></dl>
-        <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
-      if (n.kind === "view") {
-        const by = changes.filter(o => o.views.some(v => v.name === n.name)).map(o => o.name);
-        const readIn = viewSlices.filter(o => o.view === n.name).map(o => o.name);
-        const hl = n.ref.touched.length ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">· highlighted: touched in ${esc(spaced(s.name))}</span>` : "";
-        return `<div class="panel"><h2><span class="kind view">Read model</span>${esc(spaced(n.name))}</h2>
-        <dl class="kv"><dt>Updated by</dt><dd>${by.map(b => sel("slice:" + b, spaced(b))).join(", ") || "—"}</dd>
-        <dt>Read in</dt><dd>${readIn.map(b => sel("slice:" + b, spaced(b))).join(", ") || "—"}</dd></dl>
-        <div><h3>Props${hl}</h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
-      }
-      if (n.kind === "automation") {
-        const d = automationDef(n.name) ?? {};
-        const reads = viewSlices.filter(o => o.readBy.some(r => r.kind === "automation" && r.name === n.name)).map(o => o.view);
-        const issues = changes.filter(o => o.trigger?.kind === "automation" && o.trigger.name === n.name).map(o => o.command.name);
-        return `<div class="panel"><h2><span class="kind automation">Automation</span>${esc(spaced(n.name))}</h2>
-        ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
-        <dl class="kv">${d.schedule ? `<dt>Schedule</dt><dd>${esc(d.schedule)}</dd>` : ""}
-        ${reads.length ? `<dt>Reads</dt><dd>${reads.map(v => esc(spaced(v))).join(", ")}</dd>` : ""}
-        <dt>Issues</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl></div>`;
-      }
-      if (n.kind === "system") {
-        const d = systemDef(n.name) ?? {};
-        const issues = changes.filter(o => o.trigger?.kind === "system" && o.trigger.name === n.name).map(o => o.command.name);
-        return `<div class="panel"><h2><span class="kind system">External system</span>${esc(spaced(n.name))}</h2>
-        ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
-        <dl class="kv"><dt>Calls our API to issue</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl>
-        <p class="muted" style="margin:0">The system can't add events to our model. Its call issues our command, and the events that follow are ours.</p></div>`;
-      }
-      const d = screenDef(n.name) ?? {};
-      const triggers = changes.filter(o => o.trigger?.kind === "screen" && o.trigger.name === n.name).map(o => o.name);
-      const shows = viewSlices.filter(o => o.readBy.some(r => r.kind === "screen" && r.name === n.name)).map(o => o.view);
-      return `<div class="panel"><h2><span class="kind screen">Screen</span>${esc(spaced(n.name))}</h2>
-        ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
-        <dl class="kv"><dt>Actor</dt><dd>${esc(d.actor ? spaced(d.actor) : "—")}</dd>
-        <dt>Issues</dt><dd>${triggers.map(u => sel("slice:" + u, spaced(u))).join(", ") || "—"}</dd>
-        <dt>Shows</dt><dd>${shows.map(v => esc(spaced(v))).join(", ") || "—"}</dd>
-        ${d.wireframe ? `<dt>Wireframe</dt><dd>${esc(d.wireframe)}</dd>` : ""}</dl></div>`;
-    }
-
-    const detail = root.querySelector(".detail");
-    function select(nid, scroll) {
-      const isSlice = nid.startsWith("slice:");
-      const s = isSlice ? M.slices.find(x => x.name === nid.slice(6)) : M.slices[notes.find(n => n.id === nid).slice];
-      detail.innerHTML = isSlice ? sliceSummary(s) : elementPanel(nid) + sliceSummary(s);
-      detail.classList.toggle("single", isSlice);
-      board.classList.add("focusing");
-      const linked = new Set();
-      board.querySelectorAll(".note").forEach(el => el.classList.remove("sel", "linked"));
-      board.querySelectorAll(".col-head").forEach(el => el.classList.toggle("sel", el.dataset.id === "slice:" + s.name));
-      board.querySelectorAll(".edge").forEach(el => {
-        const e = edges[+el.dataset.e];
-        const hot = isSlice ? M.slices[e.a.slice] === s && M.slices[e.b.slice] === s : e.a.id === nid || e.b.id === nid;
-        el.classList.toggle("hot", hot);
-        el.setAttribute("marker-end", `url(#${hot ? "arrowHot" : "arrow"}-${id})`);
-        if (hot) { linked.add(e.a.id); linked.add(e.b.id); }
-      });
-      board.querySelectorAll(".note").forEach(el => {
-        if (el.dataset.id === nid) el.classList.add("sel");
-        if (linked.has(el.dataset.id) || (isSlice && M.slices[+el.dataset.slice] === s)) el.classList.add("linked");
-      });
-      if (scroll) board.querySelector(`[data-id="${CSS.escape(nid)}"]`)?.scrollIntoView({ block: "nearest", inline: "center",
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    }
-    board.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) select(b.dataset.id, false); });
-    detail.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) select(b.dataset.go, true); });
-    const first = opts.select && M.slices.some(s => s.name === opts.select) ? opts.select : M.slices[0].name;
-    select("slice:" + first, false);
-    return { select, width: W };
+    return `<ul class="props">${Object.entries(p).map(([k, v]) => line(k, v)).join("")}</ul>`;
   }
-  return { mountBoard, facts };
-})();
+  const allEvents = new Set(changes.flatMap(s => s.events.map(e => e.name)));
+  const allCmds = new Set(changes.map(s => s.command.name)), allViews = new Set(M.views.map(v => v.name));
+  const val = v => Array.isArray(v) ? `[${v.map(val).join(", ")}]`
+    : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${k}: ${val(x)}`).join(", ")} }` : String(v);
+  function inst({ name: n, data }) {
+    if (n === "error") return `<span class="inst err">error: <b>${esc(data)}</b></span>`;
+    const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : allViews.has(n) ? "view" : "";
+    return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${data && typeof data === "object" ? " " + esc(val(data)) : ""}</span>`;
+  }
+  function specsHtml(s) {
+    if (!s.specs.length) return `<p class="muted" style="margin:0">No specs for this slice.</p>`;
+    return s.specs.map(sp => `<div class="spec"><b>${esc(sp.name)}</b><div class="gwt">
+      <span>Given</span><div class="insts">${sp.given.length ? sp.given.map(inst).join("") : `<span class="inst none">nothing yet</span>`}</div>
+      ${sp.when ? `<span>When</span><div class="insts">${inst(sp.when)}</div>` : ""}
+      <span>Then</span><div class="insts">${sp.then.length ? sp.then.map(inst).join("") : `<span class="inst none">nothing happens</span>`}</div></div></div>`).join("");
+  }
+  const sel = (nid, label) => `<button type="button" class="link" data-go="${esc(nid)}">${esc(label)}</button>`;
+  const slices = list => list.map(o => sel("slice:" + sliceOf(o), spaced(o.name))).join(", ") || "—";
+  const who = name => (screenActor.get(name) ? ` <span class="muted">(${esc(spaced(screenActor.get(name)))})</span>` : "");
+  const triggerText = (t, nid) => t.kind === "automation" ? `Automation ${sel(nid, spaced(t.name))}`
+    : t.kind === "system" ? `External system ${sel(nid, spaced(t.name))} <span class="muted">(calls our API)</span>`
+    : `Screen ${sel(nid, spaced(t.name))}${who(t.name)}`;
+  function sliceSummary(s) {
+    const i = sliceOf(s);
+    const head = `<h2><span class="kind slice">${s.kind === "view" ? "View slice" : "Slice"}</span>${esc(spaced(s.name))}</h2>`;
+    const meta = `<dt>Status</dt><dd>${esc(s.status ?? "—")}</dd>${s.story ? `<dt>Story</dt><dd>${esc(s.story)}</dd>` : ""}`;
+    if (s.kind === "view") return `<div class="panel">${head}<dl class="kv">${meta}<dt>Read model</dt><dd>${sel(`${i}:view`, spaced(s.view))}</dd>
+        <dt>Read by</dt><dd>${s.readBy.map((r, k) => triggerText(r, `${i}:read:${k}`)).join("<br>") || "—"}</dd></dl><div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
+    return `<div class="panel">${head}<dl class="kv">${meta}
+      <dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Trigger</dt><dd>${s.trigger ? triggerText(s.trigger, `${i}:trig`) : '<span class="muted">Unspecified</span>'}</dd>
+      <dt>Command</dt><dd>${sel(`${i}:cmd`, spaced(s.command.name))}${s.command.inferred ? ' <span class="muted">(inferred from the slice name)</span>' : ""}</dd>
+      <dt>Event${s.events.length > 1 ? "s" : ""}</dt><dd>${s.events.map((e, k) => sel(`${i}:evt:${k}`, spaced(e.name))).join(", ") || "—"}</dd>
+      <dt>Updates</dt><dd>${s.views.map((v, k) => sel(`${i}:view:${k}`, spaced(v.name))).join(", ") || "—"}</dd></dl>
+      <div><h3>Specs</h3>${specsHtml(s)}</div></div>`;
+  }
+  function elementPanel(n) {
+    const s = M.slices[n.slice];
+    if (n.kind === "cmd") return `<div class="panel"><h2><span class="kind cmd">Command</span>${esc(spaced(n.name))}</h2>
+      <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd></dl><div><h3>Props</h3>${propsHtml(s.command.props)}</div></div>`;
+    if (n.kind === "evt") return `<div class="panel"><h2><span class="kind evt">Event</span>${esc(spaced(n.name))}</h2>
+      <dl class="kv"><dt>Aggregate</dt><dd>${esc(s.agg ?? "—")}</dd><dt>Updates</dt><dd>${s.views.map(v => esc(spaced(v.name))).join(", ") || "—"}</dd></dl>
+      <div><h3>Props</h3>${propsHtml(n.ev.props)}</div></div>`;
+    if (n.kind === "view") {
+      const hl = n.ref.touched.length ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">· highlighted: touched in ${esc(spaced(s.name))}</span>` : "";
+      return `<div class="panel"><h2><span class="kind view">Read model</span>${esc(spaced(n.name))}</h2>
+      <dl class="kv"><dt>Updated by</dt><dd>${slices(changes.filter(o => o.views.some(v => v.name === n.name)))}</dd>
+      <dt>Read in</dt><dd>${slices(viewSlices.filter(o => o.view === n.name))}</dd></dl>
+      <div><h3>Props${hl}</h3>${propsHtml(viewDef(n.name), n.ref.touched)}</div></div>`;
+    }
+    if (n.kind === "automation") {
+      const d = automationDef(n.name) ?? {};
+      const reads = viewSlices.filter(o => o.readBy.some(r => r.kind === "automation" && r.name === n.name)).map(o => o.view);
+      const issues = changes.filter(o => o.trigger?.kind === "automation" && o.trigger.name === n.name).map(o => o.command.name);
+      return `<div class="panel"><h2><span class="kind automation">Automation</span>${esc(spaced(n.name))}</h2>
+      ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
+      <dl class="kv">${d.schedule ? `<dt>Schedule</dt><dd>${esc(d.schedule)}</dd>` : ""}
+      ${reads.length ? `<dt>Reads</dt><dd>${reads.map(v => esc(spaced(v))).join(", ")}</dd>` : ""}
+      <dt>Issues</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl></div>`;
+    }
+    if (n.kind === "system") {
+      const d = systemDef(n.name) ?? {};
+      const issues = changes.filter(o => o.trigger?.kind === "system" && o.trigger.name === n.name).map(o => o.command.name);
+      return `<div class="panel"><h2><span class="kind system">External system</span>${esc(spaced(n.name))}</h2>
+      ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
+      <dl class="kv"><dt>Calls our API to issue</dt><dd>${issues.map(c => esc(spaced(c))).join(", ") || "—"}</dd></dl>
+      <p class="muted" style="margin:0">The system can't add events to our model. Its call issues our command, and the events that follow are ours.</p></div>`;
+    }
+    const d = screenDef(n.name) ?? {};
+    const shows = viewSlices.filter(o => o.readBy.some(r => r.kind === "screen" && r.name === n.name)).map(o => o.view);
+    return `<div class="panel"><h2><span class="kind screen">Screen</span>${esc(spaced(n.name))}</h2>
+      ${d.description ? `<p style="margin:0">${esc(d.description)}</p>` : ""}
+      <dl class="kv"><dt>Actor</dt><dd>${esc(d.actor ? spaced(d.actor) : "—")}</dd>
+      <dt>Issues</dt><dd>${slices(changes.filter(o => o.trigger?.kind === "screen" && o.trigger.name === n.name))}</dd>
+      <dt>Shows</dt><dd>${shows.map(v => esc(spaced(v))).join(", ") || "—"}</dd>
+      ${d.wireframe ? `<dt>Wireframe</dt><dd>${esc(d.wireframe)}</dd>` : ""}</dl></div>`;
+  }
+
+  let selected = 0;
+  function select(nid, scroll) {
+    const isSlice = nid.startsWith("slice:"), n = isSlice ? null : notes.find(x => x.id === nid);
+    if (!isSlice && !n) return;
+    const i = isSlice ? +nid.slice(6) : n.slice, s = M.slices[i];
+    if (!s) return;
+    selected = i;
+    detail.innerHTML = isSlice ? sliceSummary(s) : elementPanel(n) + sliceSummary(s);
+    detail.classList.toggle("single", isSlice);
+    board.classList.add("focusing");
+    const linked = new Set();
+    board.querySelectorAll(".note").forEach(el => el.classList.remove("sel", "linked"));
+    board.querySelectorAll(".col-head").forEach(el => el.classList.toggle("sel", el.dataset.id === "slice:" + i));
+    board.querySelectorAll(".edge").forEach(el => {
+      const e = edges[+el.dataset.e];
+      const hot = isSlice ? e.a.slice === i && e.b.slice === i : e.a.id === nid || e.b.id === nid;
+      el.classList.toggle("hot", hot);
+      el.setAttribute("marker-end", `url(#${hot ? "arrowHot" : "arrow"}-${id})`);
+      if (hot) { linked.add(e.a.id); linked.add(e.b.id); }
+    });
+    board.querySelectorAll("[data-id]").forEach(el => el.removeAttribute("aria-current"));
+    board.querySelectorAll(".note").forEach(el => {
+      if (el.dataset.id === nid) el.classList.add("sel");
+      if (linked.has(el.dataset.id) || (isSlice && +el.dataset.slice === i)) el.classList.add("linked");
+    });
+    const target = board.querySelector(`[data-id="${CSS.escape(nid)}"]`);
+    target?.setAttribute("aria-current", "true");
+    rove(target);
+    if (scroll) target?.scrollIntoView({ block: "nearest", inline: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+  board.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) select(b.dataset.id, false); }, on);
+  detail.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) { select(b.dataset.go, true); focusItem(b.dataset.go); } }, on);
+
+  // ---- keyboard: one tab stop for the board; arrow keys move to the nearest sticky or heading ----
+  const items = () => [...board.querySelectorAll("[data-id]")];
+  function rove(el) { if (!el) return; items().forEach(b => b.tabIndex = b === el ? 0 : -1); }
+  function focusItem(nid) { const el = board.querySelector(`[data-id="${CSS.escape(nid)}"]`); if (el) { rove(el); el.focus({ preventScroll: true }); } }
+  const center = el => ({ x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 });
+  const DIRS = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] };
+  board.addEventListener("keydown", e => {
+    const cur = e.target.closest("[data-id]");
+    if (!cur) return;
+    let next = null;
+    if (e.key === "Home" || e.key === "End") next = board.querySelector(`[data-id="slice:${e.key === "Home" ? 0 : M.slices.length - 1}"]`);
+    else if (DIRS[e.key]) {
+      const [dx, dy] = DIRS[e.key], c = center(cur);
+      let best = Infinity;
+      for (const el of items()) {
+        if (el === cur) continue;
+        const p = center(el), along = (p.x - c.x) * dx + (p.y - c.y) * dy, across = Math.abs((p.x - c.x) * dy) + Math.abs((p.y - c.y) * dx);
+        if (along <= 1) continue;
+        const score = along + across * 3;
+        if (score < best) { best = score; next = el; }
+      }
+    } else return;
+    e.preventDefault();
+    if (next) { rove(next); next.focus(); }
+  }, on);
+
+  const first = M.slices.findIndex(s => s.name === opts.select);
+  select("slice:" + Math.max(0, first), false);
+  // Bring a chosen slice into view by scrolling the board only, never the page.
+  if (first > 0 && opts.reveal !== false) {
+    const sc = root.querySelector(".scroller");
+    sc.scrollLeft = (LABEL_W + (first + 0.5) * COL_W) * zoom - sc.clientWidth / 2;
+  }
+  return { select: (name, scroll = true) => { const i = M.slices.findIndex(s => s.name === name); if (i >= 0) select("slice:" + i, scroll); },
+    destroy: () => ac.abort(), width: W, zoom: () => zoom, selected: () => M.slices[selected]?.name ?? null };
+}

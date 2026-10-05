@@ -1,0 +1,44 @@
+  /* Colour and font tokens, shared by <teml-board> (:host) and the pages around it (:root). */
+  :root, :host {
+    --page: #f3f5f7;
+    --ink: #1b2128;
+    --muted: #5b6573;
+    --line: #d4d9df;
+    --board: #fbfcfd;
+    --dot: #dde2e7;
+    --lane-alt: rgba(27, 33, 40, 0.025);
+    --label-bg: #f0f3f6;
+    --surface: #ffffff;
+    --arrow: #7a8491;
+    --hot: #1b2128;
+    --focus: #2f6db0;
+    --note-ink: #1b2027;
+    --cmd: #86bdf2;
+    --evt: #f7ab5e;
+    --view: #93d494;
+    --screen: #ffffff;
+    --screen-edge: #98a2ae;
+    --automation: #d3cbf1;
+    --sys: #dbe9ec;
+    --sys-edge: #6f8e96;
+    --err: #c8423b;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cond: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]), :host(:not([theme="light"])) {
+      color-scheme: dark;
+      --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
+      --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
+      --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
+      --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --automation: #b9aee4; --sys: #c9dde2; --sys-edge: #6f8e96; --err: #f0776f;
+    }
+  }
+  :root[data-theme="dark"], :host([theme="dark"]) {
+    color-scheme: dark;
+    --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
+    --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
+    --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
+    --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --automation: #b9aee4; --sys: #c9dde2; --sys-edge: #6f8e96; --err: #f0776f;
+  }
