@@ -100,6 +100,16 @@ slices:
       views:
         - UserView: [id, age]
 
+  # Declined: kept on the board, with the reason, so the decision isn't lost.
+  - DeleteUser:
+      agg: UserAgg
+      trigger: { screen: UserList }
+      events:
+        - DeletedUser:
+            id: g
+      status: Declined
+      description: Support deactivates accounts instead, so the user's history is kept.
+
   - ShowUsers:
       view: UserView
       readBy:
