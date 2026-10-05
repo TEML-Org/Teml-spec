@@ -1,58 +1,6 @@
-  :root {
-    --page: #f3f5f7;
-    --ink: #1b2128;
-    --muted: #5b6573;
-    --line: #d4d9df;
-    --board: #fbfcfd;
-    --dot: #dde2e7;
-    --lane-alt: rgba(27, 33, 40, 0.025);
-    --label-bg: #f0f3f6;
-    --surface: #ffffff;
-    --arrow: #7a8491;
-    --hot: #1b2128;
-    --focus: #2f6db0;
-    --note-ink: #1b2027;
-    --cmd: #86bdf2;
-    --evt: #f7ab5e;
-    --view: #93d494;
-    --screen: #ffffff;
-    --screen-edge: #98a2ae;
-    --automation: #d3cbf1;
-    --sys: #dbe9ec;
-    --sys-edge: #6f8e96;
-    --err: #c8423b;
-    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --cond: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
-      --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
-      --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
-      --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --automation: #b9aee4; --sys: #c9dde2; --sys-edge: #6f8e96; --err: #f0776f;
-    }
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --page: #111418; --ink: #e5e9ee; --muted: #98a2ae; --line: #2a3138;
-    --board: #171b20; --dot: #262d35; --lane-alt: rgba(229, 233, 238, 0.025); --label-bg: #1c2127;
-    --surface: #1a1f25; --arrow: #7f8995; --hot: #e5e9ee; --focus: #7fb2ec;
-    --cmd: #6fa8e0; --evt: #e99a4f; --view: #7fc180; --screen: #e8ecf0; --screen-edge: #8d97a3; --automation: #b9aee4; --sys: #c9dde2; --sys-edge: #6f8e96; --err: #f0776f;
-  }
-
-  body { background: var(--page); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
-  .wrap { padding-inline: 24px; padding-block: 28px 56px; max-width: 1400px; margin: 0 auto; display: grid; gap: 28px; }
-  @media (max-width: 600px) { .wrap { padding-inline: 16px; } }
-
-  header { display: grid; gap: 6px; }
-  .eyebrow { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
-  h1 { font-family: var(--cond); font-weight: 700; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance; }
-  .lede { margin: 0; max-width: 68ch; color: var(--muted); }
-  .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
-  .facts b { color: var(--ink); font-weight: 600; }
-
+  /* <teml-board> styles, inside its shadow root. Colours come from tokens.css. */
+  :host { display: grid; gap: 20px; color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+  [hidden] { display: none !important; }
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -137,6 +85,19 @@
   .inst.err { background: none; color: var(--err); border: 1px solid var(--err); }
   .inst.none { background: none; color: var(--muted); border: 1px dashed var(--line); }
 
-  details.src summary { cursor: pointer; font-weight: 600; }
-  details.src pre { margin: 12px 0 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 70vh; font: 12.5px/1.55 var(--mono); }
   @media (prefers-reduced-motion: reduce) { .note { transition: none; } }
+
+  .lane.undeclared .lane-label small { color: var(--err); }
+  .empty { margin: 0; padding: 32px 24px; color: var(--muted); }
+  .problems { border: 1px solid var(--line); border-left: 3px solid var(--err); border-radius: 0 6px 6px 0; background: var(--surface); padding: 10px 14px; font-size: 14px; }
+  .problems.warnings-only { border-left-color: var(--muted); }
+  .problems summary { cursor: pointer; font-weight: 600; }
+  .problems ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+  .problems li { display: grid; grid-template-columns: max-content 3.5em minmax(0, 1fr); gap: 10px; font-size: 13px; }
+  .problems .ln { font-family: var(--mono); white-space: nowrap; min-width: 8ch; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .problems .code { font: 600 12px/1.6 var(--mono); color: var(--err); }
+  .problems .warning .code { color: var(--muted); }
+  .problems .msg { overflow-wrap: anywhere; }
+  .problems .where { font-family: var(--mono); color: var(--muted); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  code { font-family: var(--mono); font-size: 0.92em; }

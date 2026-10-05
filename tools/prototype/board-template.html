@@ -1,11 +1,14 @@
+<meta charset="utf-8">
 <title>__TITLE__</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 __CSS__
-  .board-app { display: grid; gap: 20px; }
 </style>
+<script>
+__JS__
+</script>
 
 <div class="wrap">
   <header>
@@ -14,9 +17,7 @@ __CSS__
     <p class="lede" id="lede"></p>
     <div class="facts" id="facts"></div>
   </header>
-  <div class="board-app">
-__TOOLBAR__
-  </div>
+  <teml-board id="board"></teml-board>
   <details class="src">
     <summary id="srcSummary">TEML source</summary>
     <pre id="src"></pre>
@@ -24,13 +25,14 @@ __TOOLBAR__
 </div>
 
 <script>
-__JS__
-const M = __DATA__;
-document.getElementById("eyebrow").textContent = `${M.file} · ${M.apiVersion}`;
-document.getElementById("title").textContent = `${M.metadata.name} event model`;
-document.getElementById("lede").textContent = M.metadata.description ?? "";
-document.getElementById("facts").innerHTML = TEML_BOARD.facts(M);
-document.getElementById("src").textContent = M.source;
-document.getElementById("srcSummary").textContent = `TEML source (${M.file})`;
-TEML_BOARD.mountBoard(document.querySelector(".board-app"), M, { select: "__SELECT__" });
+const D = __DATA__;
+document.getElementById("eyebrow").textContent = `${D.file} · ${D.apiVersion}`;
+document.getElementById("title").textContent = `${D.metadata.name} event model`;
+document.getElementById("lede").textContent = D.metadata.description ?? "";
+document.getElementById("facts").innerHTML = D.facts;
+document.getElementById("src").textContent = D.source;
+document.getElementById("srcSummary").textContent = `TEML source (${D.file})`;
+const board = document.getElementById("board");
+if (D.select) board.setAttribute("select", D.select);
+board.source = D.source;
 </script>

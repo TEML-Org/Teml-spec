@@ -1,4 +1,4 @@
-<div class="toolbar">
+<div class="toolbar" part="toolbar">
   <div class="legend" aria-label="Legend">
     <span><i class="sw screen"></i>Screen</span>
     <span><i class="sw sys"></i>External system (API call)</span>
@@ -14,5 +14,9 @@
     <button type="button" class="zoom-fit">Fit</button>
   </div>
 </div>
-<div class="scroller"><div class="board"></div></div>
+<details class="problems" hidden><summary></summary><ul></ul></details>
+<div class="scroller" role="region" aria-label="Event model board" aria-describedby="board-keys">
+  <p class="sr-only" id="board-keys">Arrow keys move between stickies and slice headings. Enter shows details.</p>
+  <div class="board"></div>
+</div>
 <section class="detail" aria-live="polite"></section>

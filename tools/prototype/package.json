@@ -2,13 +2,14 @@
   "name": "teml-prototype",
   "version": "0.0.0",
   "private": true,
-  "description": "Prototype TEML tools: teml-core (parse, check, model), schema validation, and an Event Modeling board renderer.",
+  "description": "Prototype TEML tools: teml-core (parse, check, model), schema validation, and the <teml-board> web component.",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
     "validate": "node validate.mjs ../../schema/teml-alpha-003.schema.json ../../Examples/user-compliant.teml.yaml ../../Examples/hotel.teml.yaml ../../Examples/features/*.yaml",
     "check": "node check.mjs ../../Examples/*.teml.yaml ../../Examples/features/*.yaml",
-    "test": "node --test test/core.test.mjs",
+    "test": "node --test test/*.test.mjs",
+    "build": "mkdir -p out && node build.mjs out/teml-board.js",
     "board": "mkdir -p out && node build-board.mjs ../../Examples/hotel.teml.yaml out/hotel-board.html BookRoom",
     "demos": "mkdir -p out && node build-demos.mjs out/demos.html"
   },
@@ -16,5 +17,8 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

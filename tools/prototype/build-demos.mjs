@@ -46,7 +46,7 @@ const DEMOS = [
     ],
   },
 ];
-const data = DEMOS.map(({ file, ...d }) => ({ ...d, M: boardData(file) }));
+const data = DEMOS.map(({ file, ...d }) => { const { source, file: name, facts } = boardData(file); return { ...d, source, file: name, facts }; });
 const out = process.argv[2] ?? "out/demos.html";
 fs.writeFileSync(out, page("demo-template.html", { DATA: data }));
 console.log("wrote", out, fs.statSync(out).size, "bytes");
