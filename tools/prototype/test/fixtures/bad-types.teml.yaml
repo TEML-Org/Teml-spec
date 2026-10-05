@@ -1,0 +1,18 @@
+# expect: E4 line 13
+# expect: E4 line 14
+# expect: E6 line 15
+# An unknown type, a list written as [s] instead of s[], and a view update naming a missing property.
+apiVersion: teml.org/v-alpha-003
+metadata:
+  name: BadTypes
+
+slices:
+  - AddUser:
+      events:
+        - UserAdded:
+            name: Strng
+            tags: [s]
+      views: [{ Users: [nickname] }]
+
+views:
+  - Users: { name: s }
