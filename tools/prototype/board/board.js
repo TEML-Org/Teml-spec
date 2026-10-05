@@ -151,8 +151,7 @@ const TEML_BOARD = (() => {
     const allCmds = new Set(changes.map(s => s.command.name)), allViews = new Set(M.views.map(v => v.name));
     const val = v => Array.isArray(v) ? `[${v.map(val).join(", ")}]`
       : v && typeof v === "object" ? `{ ${Object.entries(v).map(([k, x]) => `${k}: ${val(x)}`).join(", ")} }` : String(v);
-    function inst(o) {
-      const [n, data] = Object.entries(o)[0];
+    function inst({ name: n, data }) {
       if (n === "error") return `<span class="inst err">error: <b>${esc(data)}</b></span>`;
       const cls = allEvents.has(n) ? "evt" : allCmds.has(n) ? "cmd" : allViews.has(n) ? "view" : "";
       return `<span class="inst ${cls}"><b>${esc(spaced(n))}</b>${data && typeof data === "object" ? " " + esc(val(data)) : ""}</span>`;
@@ -160,7 +159,7 @@ const TEML_BOARD = (() => {
     function specsHtml(s) {
       if (!s.specs.length) return `<p class="muted" style="margin:0">No specs for this slice.</p>`;
       return s.specs.map(sp => `<div class="spec"><b>${esc(sp.name)}</b><div class="gwt">
-        <span>Given</span><div class="insts">${sp.given?.length ? sp.given.map(inst).join("") : `<span class="inst none">nothing yet</span>`}</div>
+        <span>Given</span><div class="insts">${sp.given.length ? sp.given.map(inst).join("") : `<span class="inst none">nothing yet</span>`}</div>
         ${sp.when ? `<span>When</span><div class="insts">${inst(sp.when)}</div>` : ""}
         <span>Then</span><div class="insts">${sp.then.length ? sp.then.map(inst).join("") : `<span class="inst none">nothing happens</span>`}</div></div></div>`).join("");
     }

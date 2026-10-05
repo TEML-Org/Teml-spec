@@ -1,0 +1,20 @@
+# expect: E7 line 18
+# expect: E7 line 20
+# A spec's when names an unknown command, and its then names an unknown event.
+apiVersion: teml.org/v-alpha-003
+metadata:
+  name: BadSpec
+
+slices:
+  - AddUser:
+      command:
+        AddUser: { name: s }
+      events:
+        - UserAdded: { name: s }
+      specs:
+        - name: adds a user
+          given: []
+          when:
+            AddUsr: { name: Ada }
+          then:
+            - UserAded: { name: Ada }
