@@ -1,4 +1,5 @@
-# Validates the compliant examples against the schema, so a broken one can't be merged.
+# Validates the compliant examples against the schema, so a broken one can't be merged,
+# and checks that the split hotel example merges into the same model as the single file.
 # Then runs the semantic checks (spec §14) and the tools' tests from the private
 # mtalcott-perp-comp/teml-tools against this commit, using the TEML_TOOLS_TOKEN secret.
 name: Check examples
@@ -19,13 +20,20 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm install --no-save --no-package-lock ajv-cli@5.0.0 ajv-formats@3.0.1
+      - run: npm install --no-save --no-package-lock ajv-cli@5.0.0 ajv-formats@3.0.1 yaml@2.9.1
+      # The split hotel example (§3.2) must merge into the same model as the single file.
+      # The merged model is also checked against the schema, since parts aren't compliant on their own.
+      - name: Merge the split example
+        run: >-
+          node scripts/merge-parts.mjs Examples/hotel-split/hotel.teml.yaml
+          -o "$RUNNER_TEMP/hotel-split.json" --same-as Examples/hotel.teml.yaml
       - name: Validate examples against the schema
         run: >-
           npx ajv validate --spec=draft2020 -c ajv-formats --all-errors
           --strict=true --strict-types=false --strict-required=false --allow-matching-properties
           -s schema/teml-alpha-003.schema.json
           -d Examples/user-compliant.teml.yaml -d Examples/hotel.teml.yaml -d "Examples/features/*.yaml"
+          -d Examples/hotel-split/hotel.teml.yaml -d "$RUNNER_TEMP/hotel-split.json"
 
   # teml-tools is private, so it is read with a fine-grained token (Contents: read, that repo only).
   # Without the secret (as on PRs from forks) the job is skipped with a notice.

@@ -1,0 +1,40 @@
+# Part of hotel.teml.yaml (spec §3.2): housekeeping. It brings its own actor,
+# screen, type and view; CheckOut in booking.teml.yaml updates the view.
+
+types:
+  - RoomToClean:
+      roomNumber: s
+      vacatedAt: dt
+
+actors:
+  - Housekeeping:
+      description: Staff who clean rooms between stays.
+
+screens:
+  - HousekeepingTablet:
+      actor: Housekeeping
+
+views:
+  - CleaningSchedule:
+      rooms: RoomToClean[]
+
+slices:
+  - CleaningList:
+      view: CleaningSchedule
+      readBy:
+        - screen: HousekeepingTablet
+      status: Planned
+
+  - MarkRoomCleaned:
+      agg: RoomAgg
+      trigger: { screen: HousekeepingTablet }
+      command:
+        MarkRoomCleaned:
+          roomNumber: s
+      events:
+        - RoomCleaned:
+            roomNumber: s
+            cleanedAt: dt
+      views:
+        - CleaningSchedule: [rooms]
+      status: Planned

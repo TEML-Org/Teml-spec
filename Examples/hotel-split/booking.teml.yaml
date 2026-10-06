@@ -1,0 +1,303 @@
+# Part of hotel.teml.yaml (spec §3.2): booking, payment, managing a booking
+# and the stay. The automations, their to-do views and the payment provider
+# are only used here, so they are defined here.
+
+types:
+  - BookingToBill:
+      bookingId: g
+      guestId: g
+      total: dec
+  - BookingToConfirm:
+      bookingId: g
+      guestId: g
+
+views:
+  - PaymentsToRequest:
+      pending: BookingToBill[]
+
+  - ConfirmationsToSend:
+      pending: BookingToConfirm[]
+
+automations:
+  - PaymentRequester:
+      description: Asks the payment provider to charge the guest for each new booking.
+      schedule: every minute
+
+  - ConfirmationEmailer:
+      description: Emails the guest as soon as their booking is confirmed.
+
+# External systems that call our API
+systems:
+  - PaymentProvider:
+      description: Third-party card payments. Calls POST /webhooks/payments when a charge succeeds.
+
+slices:
+
+  # ---- Booking -------------------------------------------------------------
+
+  # View slice: the guest browses availability before booking.
+  - BrowseRooms:
+      view: RoomAvailability
+      readBy:
+        - screen: RoomSearch
+      status: Completed
+      specs:
+        - name: shows a booked night as taken
+          given:
+            - RoomAdded: { roomNumber: "101", roomType: Double, nightlyRate: 120.00 }
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-03 }
+          then:
+            - RoomAvailability:
+                rooms:
+                  - { roomNumber: "101", roomType: Double, nightlyRate: 120.00, bookedNights: [2026-11-02] }
+
+  - BookRoom:
+      agg: BookingAgg
+      trigger: { screen: RoomSearch }
+      command:
+        BookRoom:
+          bookingId: g
+          guestId: g
+          roomNumber: s
+          checkIn: date
+          checkOut: date
+      events:
+        - RoomBooked:
+            bookingId: g
+            guestId: g
+            roomNumber: s
+            checkIn: date
+            checkOut: date
+            total: dec
+      views:
+        - RoomAvailability: [rooms]
+        - GuestBookings: [bookings]
+        - PaymentsToRequest: [pending]
+      status: InDev
+      story: HOTEL-12
+      specs:
+        - name: books an available room and prices the stay
+          given:
+            - RoomAdded: { roomNumber: "101", roomType: Double, nightlyRate: 120.00 }
+          when:
+            BookRoom: { bookingId: b-1, guestId: g-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05 }
+          then:
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05, total: 360.00 }
+        - name: rejects dates that overlap an existing booking
+          given:
+            - RoomAdded: { roomNumber: "101" }
+            - RoomBooked: { bookingId: b-1, roomNumber: "101", checkIn: 2026-11-02, checkOut: 2026-11-05 }
+          when:
+            BookRoom: { bookingId: b-2, roomNumber: "101", checkIn: 2026-11-04, checkOut: 2026-11-06 }
+          then:
+            - error: RoomUnavailable
+
+  # ---- Payment -------------------------------------------------------------
+
+  # View slice: the Payment Requester works from this to-do list.
+  - PaymentTodo:
+      view: PaymentsToRequest
+      readBy:
+        - automation: PaymentRequester
+      status: InDev
+      specs:
+        - name: lists bookings that still need a payment request
+          given:
+            - RoomBooked: { bookingId: b-1, guestId: g-1, total: 360.00 }
+            - RoomBooked: { bookingId: b-2, guestId: g-2, total: 120.00 }
+            - PaymentRequested: { bookingId: b-1 }
+          then:
+            - PaymentsToRequest:
+                pending:
+                  - { bookingId: b-2, guestId: g-2, total: 120.00 }
+
+  # Automation: the requester issues a command for each item on its to-do list.
+  - RequestPayment:
+      agg: BookingAgg
+      trigger: { automation: PaymentRequester }
+      command:
+        RequestPayment:
+          bookingId: g
+          amount: dec
+      events:
+        - PaymentRequested:
+            bookingId: g
+            amount: dec
+            requestedAt: dt
+      views:
+        - PaymentsToRequest: [pending]
+      status: InDev
+      specs:
+        - name: requests payment for a new booking
+          given:
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+          then:
+            - RequestPayment: { bookingId: b-1, amount: 360.00 }
+        - name: does not request payment twice
+          given:
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+            - PaymentRequested: { bookingId: b-1 }
+          then: []
+
+  # Translation: the payment provider's webhook calls our API, which issues
+  # RecordPayment. The events are ours, and BookingConfirmed puts the booking
+  # on the Confirmation Emailer's to-do list.
+  - RecordPayment:
+      agg: BookingAgg
+      trigger: { system: PaymentProvider }
+      command:
+        RecordPayment:
+          bookingId: g
+          amount: dec
+          providerReference: s
+      events:
+        - PaymentReceived:
+            bookingId: g
+            amount: dec
+            providerReference: s
+        - BookingConfirmed:
+            bookingId: g
+      views:
+        - GuestBookings: [bookings]
+        - ConfirmationsToSend: [pending]
+      status: Planned
+      specs:
+        - name: records the payment and confirms the booking
+          given:
+            - RoomBooked: { bookingId: b-1, total: 360.00 }
+            - PaymentRequested: { bookingId: b-1, amount: 360.00 }
+          when:
+            RecordPayment: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
+          then:
+            - PaymentReceived: { bookingId: b-1, amount: 360.00, providerReference: pay_123 }
+            - BookingConfirmed: { bookingId: b-1 }
+        - name: rejects a payment for an unknown booking
+          when:
+            RecordPayment: { bookingId: b-9, amount: 50.00, providerReference: pay_999 }
+          then:
+            - error: UnknownBooking
+
+  # View slice: the Confirmation Emailer works from this to-do list.
+  - ConfirmationTodo:
+      view: ConfirmationsToSend
+      readBy:
+        - automation: ConfirmationEmailer
+      status: Planned
+      specs:
+        - name: lists confirmed bookings that have not been emailed
+          given:
+            - RoomBooked: { bookingId: b-1, guestId: g-1 }
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - ConfirmationsToSend:
+                pending:
+                  - { bookingId: b-1, guestId: g-1 }
+
+  # Automation: the emailer issues a command for each item on its to-do list.
+  - SendBookingConfirmation:
+      agg: BookingAgg
+      trigger: { automation: ConfirmationEmailer }
+      command:
+        SendConfirmationEmail:
+          bookingId: g
+      events:
+        - ConfirmationEmailSent:
+            bookingId: g
+            sentAt: dt
+      views:
+        - ConfirmationsToSend: [pending]
+      status: Planned
+      specs:
+        - name: emails the guest once the booking is confirmed
+          given:
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - SendConfirmationEmail: { bookingId: b-1 }
+
+  # ---- Managing a booking --------------------------------------------------
+
+  # View slice: one view, read on two screens by two different actors.
+  - ShowBookings:
+      view: GuestBookings
+      readBy:
+        - screen: MyBookings
+        - screen: FrontDeskConsole
+      status: Planned
+      specs:
+        - name: shows a confirmed booking
+          given:
+            - GuestRegistered: { guestId: g-1, name: Ada Lovelace }
+            - RoomBooked: { bookingId: b-1, guestId: g-1, roomNumber: "101", total: 360.00 }
+            - BookingConfirmed: { bookingId: b-1 }
+          then:
+            - GuestBookings:
+                guestId: g-1
+                guestName: Ada Lovelace
+                bookings:
+                  - { bookingId: b-1, roomNumber: "101", total: 360.00, status: Confirmed }
+
+  - CancelBooking:
+      agg: BookingAgg
+      trigger: { screen: MyBookings }
+      command:
+        CancelBooking:
+          bookingId: g
+          reason: s?
+      events:
+        - BookingCancelled:
+            bookingId: g
+            reason: s?
+      views:
+        - RoomAvailability: [rooms]
+        - GuestBookings: [bookings]
+      status: Planned
+      specs:
+        - name: cannot cancel after check-in
+          given:
+            - RoomBooked: { bookingId: b-1 }
+            - GuestCheckedIn: { bookingId: b-1 }
+          when:
+            CancelBooking: { bookingId: b-1 }
+          then:
+            - error: AlreadyCheckedIn
+
+  # ---- The stay ----------------------------------------------------------
+
+  - CheckIn:
+      agg: BookingAgg
+      trigger: { screen: FrontDeskConsole }
+      command:
+        CheckIn:
+          bookingId: g
+      events:
+        - GuestCheckedIn:
+            bookingId: g
+            roomNumber: s
+            checkedInAt: dt
+      views:
+        - GuestBookings: [bookings]
+      status: Planned
+      specs:
+        - name: cannot check in before payment is confirmed
+          given:
+            - RoomBooked: { bookingId: b-1 }
+          when:
+            CheckIn: { bookingId: b-1 }
+          then:
+            - error: PaymentNotConfirmed
+
+  - CheckOut:
+      agg: BookingAgg
+      trigger: { screen: FrontDeskConsole }
+      command:
+        CheckOut:
+          bookingId: g
+      events:
+        - GuestCheckedOut:
+            bookingId: g
+            roomNumber: s
+            checkedOutAt: dt
+      views:
+        - GuestBookings: [bookings]
+        - CleaningSchedule: [rooms]
+      status: Planned
