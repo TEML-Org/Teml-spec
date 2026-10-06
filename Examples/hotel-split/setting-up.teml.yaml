@@ -1,0 +1,49 @@
+# Part of hotel.teml.yaml (spec §3.2): setting up guests and rooms.
+
+slices:
+  - RegisterGuest:
+      agg: GuestAgg
+      trigger: { screen: SignUpPage }
+      command:
+        RegisterGuest:
+          guestId: g
+          name: s
+          email: s
+      events:
+        - GuestRegistered:
+            guestId: g
+            name: s
+            email: s
+      views:
+        - GuestBookings: [guestId, guestName]
+      status: Completed
+      specs:
+        - name: registers a guest
+          when:
+            RegisterGuest: { guestId: g-1, name: Ada Lovelace, email: ada@example.com }
+          then:
+            - GuestRegistered: { guestId: g-1, name: Ada Lovelace, email: ada@example.com }
+        - name: rejects an email that is already registered
+          given:
+            - GuestRegistered: { guestId: g-1, email: ada@example.com }
+          when:
+            RegisterGuest: { guestId: g-2, email: ada@example.com }
+          then:
+            - error: EmailAlreadyRegistered
+
+  - AddRoom:
+      agg: RoomAgg
+      trigger: { screen: RoomManagement }
+      command:
+        AddRoom:
+          roomNumber: s
+          roomType: RoomType
+          nightlyRate: dec
+      events:
+        - RoomAdded:
+            roomNumber: s
+            roomType: RoomType
+            nightlyRate: dec
+      views:
+        - RoomAvailability: [rooms]
+      status: Completed

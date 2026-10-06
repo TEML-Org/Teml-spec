@@ -43,6 +43,8 @@ You can write TEML as a quick **sketch** (no header, untyped props) or as a **co
 | [`Examples/user-compliant.teml.yaml`](Examples/user-compliant.teml.yaml) | The user example as a compliant document |
 | [`Examples/hotel.teml.yaml`](Examples/hotel.teml.yaml) | The classic Event Modeling hotel example: actors, screens, view slices, a payment provider that calls our API, and specs |
 | [`Examples/features/`](Examples/features/) | Small examples of actors and screens, view slices, and an external system |
+| [`Examples/hotel-split/`](Examples/hotel-split/) | The hotel example split across a root file and three parts (`include`, spec §3.2) |
+| [`scripts/merge-parts.mjs`](scripts/merge-parts.mjs) | Merges a root file with its parts; CI uses it to check the split example |
 
 The tools (the checker, the `<teml-board>` web component and the coming viewer) moved to their own repository, TEML-Org/teml-tools, on 2026-10-05. It is private for now; the boards they draw are at [teml.org/demos](https://teml.org/demos/).
 
@@ -55,6 +57,8 @@ Add this line to the top of a compliant `.teml.yaml` file to get autocomplete an
 ```
 
 ## History
+
+2026/10/06: `v-alpha-003` adds parts: a root file's `include` lists the other files of a model.
 
 2026/10/04: Draft `v-alpha-003`: a smaller language. References are plain names (no YAML anchors or aliases), one name per type, one `events` list per slice, and `automations` that always work from a to-do view.
 

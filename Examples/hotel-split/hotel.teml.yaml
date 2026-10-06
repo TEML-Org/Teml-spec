@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
+#
+# The hotel example (../hotel.teml.yaml) split across files (spec §3.2).
+# This root file holds the header and what every chapter shares; each part
+# holds one chapter of the timeline. Merged, it is the same model as the
+# single file, and CI checks that it stays so.
+
+apiVersion: teml.org/v-alpha-003
+metadata:
+  name: Hotel
+  description: >
+    Guests find and book rooms and pay online. The front desk checks guests in
+    and out, and housekeeping cleans rooms between stays.
+  version: "0.3.0"
+
+# The parts, in timeline order.
+include:
+  - setting-up.teml.yaml
+  - booking.teml.yaml
+  - housekeeping.teml.yaml
+
+types:
+  - RoomType:
+      enum: [Single, Double, Suite]
+  - BookingStatus:
+      enum: [AwaitingPayment, Confirmed, CheckedIn, CheckedOut, Cancelled]
+
+  # Rows of the list views below. A list of objects uses a named type.
+  - AvailableRoom:
+      roomNumber: s
+      roomType: RoomType
+      nightlyRate: dec
+      bookedNights: date[]
+  - BookingSummary:
+      bookingId: g
+      roomNumber: s
+      checkIn: date
+      checkOut: date
+      total: dec
+      status: BookingStatus
+
+# People (the swimlanes at the top of the board) and their screens.
+# Housekeeping and its screen are in housekeeping.teml.yaml.
+actors:
+  - Guest:
+      description: Someone booking or staying at the hotel.
+  - Manager:
+      description: Runs the hotel and manages its rooms.
+  - FrontDesk:
+      description: Reception staff who check guests in and out.
+
+screens:
+  - SignUpPage:
+      actor: Guest
+  - RoomSearch:
+      actor: Guest
+      wireframe: wireframes/room-search.png
+  - MyBookings:
+      actor: Guest
+  - RoomManagement:
+      actor: Manager
+  - FrontDeskConsole:
+      actor: FrontDesk
+
+# Aggregates
+aggs:
+  - GuestAgg:
+      guestId: g
+      name: s
+      email: s
+
+  - RoomAgg:
+      roomNumber: s
+      roomType: RoomType
+      nightlyRate: dec
+      needsCleaning: bool
+
+  - BookingAgg:
+      bookingId: g
+      guestId: g
+      roomNumber: s
+      checkIn: date
+      checkOut: date
+      total: dec
+      status: BookingStatus
+
+# Views used across chapters. The to-do views of the booking automations are
+# in booking.teml.yaml, and the cleaning schedule in housekeeping.teml.yaml.
+views:
+  - RoomAvailability:
+      rooms: AvailableRoom[]
+
+  - GuestBookings:
+      guestId: g
+      guestName: s
+      bookings: BookingSummary[]
