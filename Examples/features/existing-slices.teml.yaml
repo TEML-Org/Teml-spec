@@ -62,6 +62,12 @@ slices:
       existing: true
       status: Planned
       description: Add the due date, 21 days after the loan.
+      meta:
+        Story: LIB-42
+        Link: https://jira.example.com/browse/LIB-42
+        Points: 2
+        Developer: Ana Ruiz
+        Due: "2026-11-14"
       agg: LoanAgg
       trigger: { screen: LoanDesk }
       command:
@@ -83,6 +89,10 @@ slices:
   # New.
   - RenewLoan:
       status: Planned
+      meta:
+        Story: LIB-43
+        Points: 5
+        Developer: Ana Ruiz
       agg: LoanAgg
       trigger: { screen: MyLoans }
       command:

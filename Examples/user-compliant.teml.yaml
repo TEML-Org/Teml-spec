@@ -90,7 +90,9 @@ slices:
       status: Completed
 
   - ReAgeUser:
-      story: "https://www.example.com/12345"
+      meta:
+        Story: "12345"
+        Link: https://www.example.com/12345
       status: InDev
       agg: UserAgg
       events:
