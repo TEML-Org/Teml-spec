@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
+#
+# Feature demo: existing slices (spec §12.1).
+# A model of changes to a system that is already running. `existing: true`
+# marks the slices already built; the others are new. `status` says what work
+# is left, so an existing slice that needs changes is `Planned` too, with its
+# description saying what changes.
+
+apiVersion: teml.org/v-alpha-003
+metadata:
+  name: Library loans
+  description: A library that already lends books adds due dates and renewals.
+
+actors:
+  - Member:
+  - Librarian:
+
+screens:
+  - Catalogue:
+      actor: Librarian
+  - LoanDesk:
+      actor: Librarian
+  - MyLoans:
+      actor: Member
+
+types:
+  - Loan:
+      loanId: g
+      title: s
+      dueDate: date
+
+aggs:
+  - BookAgg:
+      bookId: g
+      title: s
+  - LoanAgg:
+      loanId: g
+      bookId: g
+      memberId: g
+      dueDate: date
+      renewals: int
+
+views:
+  - MemberLoans:
+      memberId: g
+      loans: Loan[]
+
+slices:
+  # Built, nothing to do.
+  - AddBook:
+      existing: true
+      status: Completed
+      agg: BookAgg
+      trigger: { screen: Catalogue }
+      command:
+        AddBook: { bookId: g, title: s }
+      events:
+        - BookAdded: { bookId: g, title: s }
+
+  # Built, but it needs a new field: less work than a new slice.
+  - LendBook:
+      existing: true
+      status: Planned
+      description: Add the due date, 21 days after the loan.
+      agg: LoanAgg
+      trigger: { screen: LoanDesk }
+      command:
+        LendBook: { loanId: g, bookId: g, memberId: g }
+      events:
+        - BookLent: { loanId: g, bookId: g, memberId: g, dueDate: date }
+      views:
+        - MemberLoans: [memberId, loans]
+
+  # Built; the screen will show the due date too.
+  - ShowMyLoans:
+      existing: true
+      status: Planned
+      description: Show each loan's due date.
+      view: MemberLoans
+      readBy:
+        - screen: MyLoans
+
+  # New.
+  - RenewLoan:
+      status: Planned
+      agg: LoanAgg
+      trigger: { screen: MyLoans }
+      command:
+        RenewLoan: { loanId: g }
+      events:
+        - LoanRenewed: { loanId: g, dueDate: date }
+      views:
+        - MemberLoans: [loans]
+      specs:
+        - name: renews a loan once
+          given:
+            - BookLent: { loanId: l-1 }
+            - LoanRenewed: { loanId: l-1 }
+          when:
+            RenewLoan: { loanId: l-1 }
+          then:
+            - error: AlreadyRenewed
+
+  # Built, nothing to do.
+  - ReturnBook:
+      existing: true
+      status: Completed
+      agg: LoanAgg
+      trigger: { screen: LoanDesk }
+      command:
+        ReturnBook: { loanId: g }
+      events:
+        - BookReturned: { loanId: g }
+      views:
+        - MemberLoans: [loans]
