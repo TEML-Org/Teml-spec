@@ -74,7 +74,10 @@ slices:
         - GuestBookings: [bookings]
         - PaymentsToRequest: [pending]
       status: InDev
-      story: HOTEL-12
+      meta:
+        Story: HOTEL-12
+        Points: 5
+        Developer: Priya Shah
       specs:
         - name: books an available room and prices the stay
           given:
