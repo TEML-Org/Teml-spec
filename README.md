@@ -56,6 +56,10 @@ Add this line to the top of a compliant `.teml.yaml` file to get autocomplete an
 # yaml-language-server: $schema=https://teml.org/schema/teml-alpha-003.schema.json
 ```
 
+## Contributing
+
+Fixes are welcome as pull requests. A change to the language starts with an issue that describes a concrete need; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## History
 
 2026/10/06: `v-alpha-003` adds parts: a root file's `include` lists the other files of a model.
