@@ -4,6 +4,7 @@ slices:
   - RegisterGuest:
       agg: GuestAgg
       trigger: { screen: SignUpPage }
+      api: POST /guests
       command:
         RegisterGuest:
           guestId: g
@@ -34,6 +35,7 @@ slices:
   - AddRoom:
       agg: RoomAgg
       trigger: { screen: RoomManagement }
+      api: POST /rooms
       command:
         AddRoom:
           roomNumber: s

@@ -52,15 +52,26 @@ actors:
 screens:
   - SignUpPage:
       actor: Guest
+      calls:
+        - POST /guests
   - RoomSearch:
       actor: Guest
       wireframe: wireframes/room-search.png
+      calls:
+        - POST /bookings
   - MyBookings:
       actor: Guest
+      calls:
+        - POST /bookings/{bookingId}/cancellation
   - RoomManagement:
       actor: Manager
+      calls:
+        - POST /rooms
   - FrontDeskConsole:
       actor: FrontDesk
+      calls:
+        - POST /bookings/{bookingId}/check-in
+        - POST /bookings/{bookingId}/check-out
 
 # Aggregates
 aggs:
