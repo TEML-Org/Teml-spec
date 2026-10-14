@@ -22,22 +22,14 @@ automations:
   - PaymentRequester:
       description: Asks the payment provider to charge the guest for each new booking.
       schedule: every minute
-      calls:
-        - POST /bookings/{bookingId}/payment-requests
-        - POST https://api.payments.example/charges   # outside our model
 
   - ConfirmationEmailer:
       description: Emails the guest as soon as their booking is confirmed.
-      calls:
-        - POST /bookings/{bookingId}/confirmation-emails
-        - POST https://api.mail.example/messages   # outside our model
 
 # External systems that call our API
 systems:
   - PaymentProvider:
       description: Third-party card payments. Calls POST /webhooks/payments when a charge succeeds.
-      calls:
-        - POST /webhooks/payments
 
 slices:
 
@@ -62,7 +54,6 @@ slices:
   - BookRoom:
       agg: BookingAgg
       trigger: { screen: RoomSearch }
-      api: POST /bookings
       command:
         BookRoom:
           bookingId: g
@@ -127,7 +118,6 @@ slices:
   - RequestPayment:
       agg: BookingAgg
       trigger: { automation: PaymentRequester }
-      api: POST /bookings/{bookingId}/payment-requests
       command:
         RequestPayment:
           bookingId: g
@@ -158,7 +148,6 @@ slices:
   - RecordPayment:
       agg: BookingAgg
       trigger: { system: PaymentProvider }
-      api: POST /webhooks/payments
       command:
         RecordPayment:
           bookingId: g
@@ -211,7 +200,6 @@ slices:
   - SendBookingConfirmation:
       agg: BookingAgg
       trigger: { automation: ConfirmationEmailer }
-      api: POST /bookings/{bookingId}/confirmation-emails
       command:
         SendConfirmationEmail:
           bookingId: g
@@ -254,7 +242,6 @@ slices:
   - CancelBooking:
       agg: BookingAgg
       trigger: { screen: MyBookings }
-      api: POST /bookings/{bookingId}/cancellation
       command:
         CancelBooking:
           bookingId: g
@@ -282,7 +269,6 @@ slices:
   - CheckIn:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
-      api: POST /bookings/{bookingId}/check-in
       command:
         CheckIn:
           bookingId: g
@@ -306,7 +292,6 @@ slices:
   - CheckOut:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
-      api: POST /bookings/{bookingId}/check-out
       command:
         CheckOut:
           bookingId: g
