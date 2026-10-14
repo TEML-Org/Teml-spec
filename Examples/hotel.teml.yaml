@@ -3,7 +3,7 @@
 # Hotel booking: the classic Event Modeling example (see eventmodeling.org)
 # as a compliant TEML document. It uses every v-alpha-003 feature: actors and
 # screens, change and view slices, automations, an external system that calls
-# our API, the API endpoints each screen, automation and system calls, and specs.
+# our API, and specs.
 
 apiVersion: teml.org/v-alpha-003
 metadata:
@@ -57,30 +57,17 @@ actors:
 screens:
   - SignUpPage:
       actor: Guest
-      calls:
-        - POST /guests
   - RoomSearch:
       actor: Guest
       wireframe: wireframes/room-search.png
-      calls:
-        - POST /bookings
   - MyBookings:
       actor: Guest
-      calls:
-        - POST /bookings/{bookingId}/cancellation
   - RoomManagement:
       actor: Manager
-      calls:
-        - POST /rooms
   - FrontDeskConsole:
       actor: FrontDesk
-      calls:
-        - POST /bookings/{bookingId}/check-in
-        - POST /bookings/{bookingId}/check-out
   - HousekeepingTablet:
       actor: Housekeeping
-      calls:
-        - POST /rooms/{roomNumber}/cleaned
 
 # Aggregates
 aggs:
@@ -128,22 +115,14 @@ automations:
   - PaymentRequester:
       description: Asks the payment provider to charge the guest for each new booking.
       schedule: every minute
-      calls:
-        - POST /bookings/{bookingId}/payment-requests
-        - POST https://api.payments.example/charges   # outside our model
 
   - ConfirmationEmailer:
       description: Emails the guest as soon as their booking is confirmed.
-      calls:
-        - POST /bookings/{bookingId}/confirmation-emails
-        - POST https://api.mail.example/messages   # outside our model
 
 # External systems that call our API
 systems:
   - PaymentProvider:
       description: Third-party card payments. Calls POST /webhooks/payments when a charge succeeds.
-      calls:
-        - POST /webhooks/payments
 
 # Slices (left to right on the timeline)
 slices:
@@ -153,7 +132,6 @@ slices:
   - RegisterGuest:
       agg: GuestAgg
       trigger: { screen: SignUpPage }
-      api: POST /guests
       command:
         RegisterGuest:
           guestId: g
@@ -184,7 +162,6 @@ slices:
   - AddRoom:
       agg: RoomAgg
       trigger: { screen: RoomManagement }
-      api: POST /rooms
       command:
         AddRoom:
           roomNumber: s
@@ -220,7 +197,6 @@ slices:
   - BookRoom:
       agg: BookingAgg
       trigger: { screen: RoomSearch }
-      api: POST /bookings
       command:
         BookRoom:
           bookingId: g
@@ -285,7 +261,6 @@ slices:
   - RequestPayment:
       agg: BookingAgg
       trigger: { automation: PaymentRequester }
-      api: POST /bookings/{bookingId}/payment-requests
       command:
         RequestPayment:
           bookingId: g
@@ -316,7 +291,6 @@ slices:
   - RecordPayment:
       agg: BookingAgg
       trigger: { system: PaymentProvider }
-      api: POST /webhooks/payments
       command:
         RecordPayment:
           bookingId: g
@@ -369,7 +343,6 @@ slices:
   - SendBookingConfirmation:
       agg: BookingAgg
       trigger: { automation: ConfirmationEmailer }
-      api: POST /bookings/{bookingId}/confirmation-emails
       command:
         SendConfirmationEmail:
           bookingId: g
@@ -412,7 +385,6 @@ slices:
   - CancelBooking:
       agg: BookingAgg
       trigger: { screen: MyBookings }
-      api: POST /bookings/{bookingId}/cancellation
       command:
         CancelBooking:
           bookingId: g
@@ -440,7 +412,6 @@ slices:
   - CheckIn:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
-      api: POST /bookings/{bookingId}/check-in
       command:
         CheckIn:
           bookingId: g
@@ -464,7 +435,6 @@ slices:
   - CheckOut:
       agg: BookingAgg
       trigger: { screen: FrontDeskConsole }
-      api: POST /bookings/{bookingId}/check-out
       command:
         CheckOut:
           bookingId: g
@@ -489,7 +459,6 @@ slices:
   - MarkRoomCleaned:
       agg: RoomAgg
       trigger: { screen: HousekeepingTablet }
-      api: POST /rooms/{roomNumber}/cleaned
       command:
         MarkRoomCleaned:
           roomNumber: s

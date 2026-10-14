@@ -13,8 +13,6 @@ actors:
 screens:
   - HousekeepingTablet:
       actor: Housekeeping
-      calls:
-        - POST /rooms/{roomNumber}/cleaned
 
 views:
   - CleaningSchedule:
@@ -30,7 +28,6 @@ slices:
   - MarkRoomCleaned:
       agg: RoomAgg
       trigger: { screen: HousekeepingTablet }
-      api: POST /rooms/{roomNumber}/cleaned
       command:
         MarkRoomCleaned:
           roomNumber: s
