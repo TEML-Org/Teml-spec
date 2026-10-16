@@ -37,6 +37,7 @@ slices:
 
   # View slice: the guest browses availability before booking.
   - BrowseRooms:
+      userStory: As a guest, I want to see which rooms are free on my dates, so that I can pick one to book.
       view: RoomAvailability
       readBy:
         - screen: RoomSearch
@@ -52,6 +53,9 @@ slices:
                   - { roomNumber: "101", roomType: Double, nightlyRate: 120.00, bookedNights: [2026-11-02] }
 
   - BookRoom:
+      userStory: >
+        As a guest, I want to book a room for the nights I need,
+        so that I know I have somewhere to stay.
       agg: BookingAgg
       trigger: { screen: RoomSearch }
       command:
