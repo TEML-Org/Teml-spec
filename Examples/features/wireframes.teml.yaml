@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../../schema/teml-alpha-003.schema.json
+#
+# Feature demo: wireframes (spec §10.2, §12.5, §12.6).
+# One screen is used by three slices. The screen has a wireframe of its own, and two of the
+# slices give their own: the screen as it looks when that slice happens on it.
+# Relative paths are relative to this file.
+
+apiVersion: teml.org/v-alpha-003
+metadata:
+  name: Front desk
+  description: Reception checks guests in and out from one console.
+
+actors:
+  - FrontDesk:
+      description: Reception staff.
+
+screens:
+  - FrontDeskConsole:
+      actor: FrontDesk
+      wireframe: wireframes/front-desk.svg     # the console as it usually looks
+
+types:
+  - Arrival:
+      bookingId: g
+      guestName: s
+      roomNumber: s
+
+aggs:
+  - StayAgg:
+      bookingId: g
+      roomNumber: s
+      checkedIn: bool
+
+views:
+  - Arrivals:
+      arrivals: Arrival[]
+
+slices:
+  - ShowArrivals:
+      view: Arrivals
+      readBy:
+        - screen: FrontDeskConsole
+          wireframe: wireframes/arrivals.svg   # the console showing today's arrivals
+
+  - CheckIn:
+      agg: StayAgg
+      trigger: { screen: FrontDeskConsole, wireframe: wireframes/check-in.svg }   # with the check-in dialog open
+      command:
+        CheckIn: { bookingId: g, roomNumber: s }
+      events:
+        - GuestCheckedIn: { bookingId: g, roomNumber: s }
+      views:
+        - Arrivals: [arrivals]
+
+  - CheckOut:
+      agg: StayAgg
+      trigger: { screen: FrontDeskConsole }    # no wireframe here: the screen's own is shown
+      command:
+        CheckOut: { bookingId: g }
+      events:
+        - GuestCheckedOut: { bookingId: g }

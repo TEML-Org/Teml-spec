@@ -310,8 +310,7 @@
     },
     "trigger": {
       "type": "object",
-      "minProperties": 1,
-      "maxProperties": 1,
+      "description": "Exactly one of screen, automation or system. A screen trigger may also give the wireframe of the screen in this slice (§12.5).",
       "properties": {
         "screen": {
           "$ref": "#/$defs/name"
@@ -321,21 +320,41 @@
         },
         "system": {
           "$ref": "#/$defs/name"
+        },
+        "wireframe": {
+          "type": "string"
         }
+      },
+      "oneOf": [
+        { "required": ["screen"] },
+        { "required": ["automation"] },
+        { "required": ["system"] }
+      ],
+      "dependentRequired": {
+        "wireframe": ["screen"]
       },
       "additionalProperties": false
     },
     "reader": {
       "type": "object",
-      "minProperties": 1,
-      "maxProperties": 1,
+      "description": "Exactly one of screen or automation. A screen reader may also give the wireframe of the screen in this slice (§12.6).",
       "properties": {
         "screen": {
           "$ref": "#/$defs/name"
         },
         "automation": {
           "$ref": "#/$defs/name"
+        },
+        "wireframe": {
+          "type": "string"
         }
+      },
+      "oneOf": [
+        { "required": ["screen"] },
+        { "required": ["automation"] }
+      ],
+      "dependentRequired": {
+        "wireframe": ["screen"]
       },
       "additionalProperties": false
     },

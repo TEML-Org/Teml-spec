@@ -54,7 +54,7 @@ screens:
       actor: Guest
   - RoomSearch:
       actor: Guest
-      wireframe: wireframes/room-search.png
+      wireframe: wireframes/room-search.svg
   - MyBookings:
       actor: Guest
   - RoomManagement:
