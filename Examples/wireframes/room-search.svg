@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300" font-family="Helvetica, Arial, sans-serif" font-size="12">
+  <title>Room search</title>
+  <rect width="480" height="300" fill="#f7f7f7" stroke="#999"/>
+  <rect width="480" height="36" fill="#555"/>
+  <text x="14" y="23" fill="#fff" font-weight="bold">Harbour Hotel</text>
+  <text x="396" y="23" fill="#ddd">Sign in</text>
+  <text x="16" y="62" font-size="15" font-weight="bold">Find a room</text>
+  <rect x="16" y="74" width="140" height="28" fill="#fff" stroke="#888"/><text x="26" y="93">2 Nov 2026</text>
+  <rect x="164" y="74" width="140" height="28" fill="#fff" stroke="#888"/><text x="174" y="93">4 Nov 2026</text>
+  <rect x="312" y="74" width="72" height="28" fill="#fff" stroke="#888"/><text x="322" y="93">2 guests</text>
+  <rect x="392" y="74" width="72" height="28" rx="3" fill="#555"/><text x="408" y="93" fill="#fff" font-weight="bold">Search</text>
+  <rect x="16" y="116" width="448" height="40" fill="#fff" stroke="#ccc"/><text x="28" y="141">Room 101 · Double · sea view</text><text x="300" y="141" fill="#666">£240 for 2 nights</text><rect x="400" y="124" width="56" height="24" rx="3" fill="#ddd"/><text x="413" y="140">Book</text>
+  <rect x="16" y="162" width="448" height="40" fill="#fff" stroke="#ccc"/><text x="28" y="187">Room 204 · Twin</text><text x="300" y="187" fill="#666">£200 for 2 nights</text><rect x="400" y="170" width="56" height="24" rx="3" fill="#ddd"/><text x="413" y="186">Book</text>
+  <rect x="16" y="208" width="448" height="40" fill="#fff" stroke="#ccc"/><text x="28" y="233" fill="#999">Room 305 · Suite</text><text x="300" y="233" fill="#999">Taken on 3 Nov</text>
+</svg>
