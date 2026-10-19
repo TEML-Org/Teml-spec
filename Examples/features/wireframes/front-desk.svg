@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300" font-family="Helvetica, Arial, sans-serif" font-size="12">
+  <title>Front desk console</title>
+  <rect width="480" height="300" fill="#f7f7f7" stroke="#999"/>
+  <rect width="480" height="36" fill="#555"/>
+  <text x="14" y="23" fill="#fff" font-weight="bold">Harbour Hotel · Front desk</text>
+  <text x="400" y="23" fill="#ddd">Ana Ruiz</text>
+  <text x="16" y="62" font-size="15" font-weight="bold">Today</text>
+  <rect x="16" y="76" width="216" height="90" fill="#fff" stroke="#ccc"/><text x="28" y="100" fill="#666">Arrivals</text><text x="28" y="140" font-size="30" font-weight="bold">12</text>
+  <rect x="248" y="76" width="216" height="90" fill="#fff" stroke="#ccc"/><text x="260" y="100" fill="#666">Departures</text><text x="260" y="140" font-size="30" font-weight="bold">9</text>
+  <rect x="16" y="182" width="448" height="30" fill="#fff" stroke="#ccc"/><text x="28" y="201" fill="#999">Find a guest or booking…</text>
+</svg>

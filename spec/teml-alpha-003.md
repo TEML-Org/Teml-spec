@@ -366,11 +366,15 @@ screens:
 |---|---|---|
 | `actor` | Actor name | Who uses the screen. |
 | `description` | string | |
-| `wireframe` | string | URL or relative path of a mockup or image. |
+| `wireframe` | string | URL or relative path of a mockup or image of the screen. |
+
+A relative `wireframe` path is relative to the file it is written in, which for a part (§3.2) is the part's own file.
 
 A screen is used in two places:
 - as the **trigger** of a slice, where a person issues the command from it (§12.5);
 - as a **reader** of a view slice, where it displays the view (§12.6).
+
+A screen often looks different in each slice that uses it: one slice opens a dialog on it, another shows a list. Each of those slices **MAY** give its own `wireframe` where it names the screen (§12.5, §12.6). The screen's `wireframe` is shown for slices that don't.
 
 ---
 
@@ -523,7 +527,7 @@ Each listed property **MUST** be a property of the view. "Touched" covers both p
 
 ### 12.5 Trigger
 
-`trigger` records what issues the command. It is a single-key mapping:
+`trigger` records what issues the command. It is a mapping with exactly one of these keys:
 
 | Form | Meaning |
 |---|---|
@@ -532,6 +536,15 @@ Each listed property **MUST** be a property of the view. "Touched" covers both p
 | `trigger: { system: PaymentProvider }` | An external system issues the command by calling our API, for example a webhook callback (§11). |
 
 When `trigger` is omitted, the trigger is unspecified.
+
+A `screen` trigger **MAY** also give a `wireframe`: an image of the screen as it looks when the person issues this command, such as the screen with this command's dialog open. It is written like a screen's `wireframe` (§10.2), and for this slice it is shown instead of the screen's.
+
+```yaml
+- CheckIn:
+    trigger: { screen: FrontDeskConsole, wireframe: wireframes/check-in.svg }
+```
+
+A `wireframe` **MUST NOT** be given with `automation` or `system`.
 
 ### 12.6 View slices
 
@@ -554,7 +567,7 @@ A view slice shows where a view is read: a screen that displays it, or an automa
 | Key | Type | Description |
 |---|---|---|
 | `view` | View name | **Required.** The view being read. |
-| `readBy` | list of Reader | Who reads the view. Each item is a single-key mapping: `screen: <Screen>` or `automation: <Automation>`. |
+| `readBy` | list of Reader | Who reads the view. Each item is a mapping with exactly one of `screen: <Screen>` or `automation: <Automation>`. A `screen` reader **MAY** also give a `wireframe`, as a trigger can (§12.5): the screen as it shows this view. |
 | `meta` | mapping | As for change slices (§12.7). |
 | `status` | string | As for change slices (§12.1). |
 | `existing` | boolean | As for change slices (§12.1). |
@@ -565,6 +578,14 @@ A view slice shows where a view is read: a screen that displays it, or an automa
 A view slice **MUST NOT** contain the change-slice keys `agg`, `trigger`, `command`, `events` or `views`.
 
 A view **MAY** appear in more than one view slice, for example when it is shown at different points on the timeline.
+
+```yaml
+- ShowArrivals:
+    view: Arrivals
+    readBy:
+      - screen: FrontDeskConsole
+        wireframe: wireframes/arrivals.svg    # the console showing today's arrivals
+```
 
 On a board, a view slice's readers are drawn to the **right** of its view, because the view must exist before anything can read it (Appendix C).
 
@@ -638,7 +659,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - E2 A name is duplicated within a named list, or an event name is used by more than one slice. This applies across all of a model's files (§3.2).
 - E3 A reference does not resolve to a defined element of the expected kind (§5).
 - E4 A property is untyped, or a type expression names an unknown type.
-- E5 A slice is neither a change slice nor a view slice, or mixes keys of both kinds; or a slice key has the wrong shape, such as `existing` that isn't `true` or `false`, or a `meta` value that is a list or a mapping.
+- E5 A slice is neither a change slice nor a view slice, or mixes keys of both kinds; or a slice key has the wrong shape, such as `existing` that isn't `true` or `false`, a `meta` value that is a list or a mapping, or a `wireframe` on a trigger or reader that isn't a screen.
 - E6 A view update lists a property the view does not have.
 - E7 A spec instance names an unknown command, event or view, or a property it does not define; or its `when`/`then` does not fit the slice (§13).
 - E8 An `include` path is not allowed, or names a file that cannot be read or is listed twice; or a part contains `apiVersion`, `metadata` or `include` (§3.2).
@@ -669,6 +690,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - [`Examples/hotel.teml.yaml`](../Examples/hotel.teml.yaml): the classic Event Modeling hotel example, using actors, screens, view slices, automations, and an external payment provider that calls our API.
 - [`Examples/hotel-split/`](../Examples/hotel-split/): the same model split across a root file and three parts (§3.2).
 - [`Examples/features/existing-slices.teml.yaml`](../Examples/features/existing-slices.teml.yaml): changes to a running system, with existing and new slices (§12.1).
+- [`Examples/features/wireframes.teml.yaml`](../Examples/features/wireframes.teml.yaml): one screen with a different wireframe in each slice (§10.2, §12.5, §12.6).
 
 ## Appendix B. Open questions
 
@@ -678,6 +700,7 @@ These rules apply to compliant documents. For sketches, processors **SHOULD** re
 - **Command errors** (not planned). Declaring the errors a command can produce, so that `error:` names in specs can be checked. Decided on 2026-10-06 to leave this out to keep the spec small: `error:` names stay free text, and the specs that use them already list how a command can fail.
 - **Repeated props.** A command's props often repeat its event's props. A shorthand could cut the duplication.
 - **API endpoints.** Should `trigger: { system: … }` be able to name the endpoint the system calls (for example `POST /webhooks/payments`), the way a screen names its wireframe?
+- **Checking wireframe files.** A warning for a relative `wireframe` path that names a missing file. Left to tools for now, because a model is often checked without its images.
 - **Systems reading views.** Should `readBy` accept `system:` for an external system that queries one of our views through the API?
 
 ## Appendix C. Drawing a board (informative)
@@ -707,6 +730,10 @@ Within a change slice, the trigger is drawn directly above its command, and the 
 
 Following Event Modeling convention: commands are blue, events orange, read models green, and screens white. Automations are marked with a gear (⚙).
 
+### C.4 Wireframes
+
+A screen is drawn in each slice that uses it, so each slice can show the screen as it looks there. Tools **SHOULD** show the wireframe on the screen's sticky, for example as a thumbnail that opens full size, using the slice's own `wireframe` (§12.5, §12.6) and otherwise the screen's (§10.2). A `wireframe` that isn't an image, such as a link to a design tool, is shown as a link. A tool that opened the model from a URL resolves relative paths against that URL.
+
 ## Changes from v-alpha-002
 
 v-alpha-003 removes features rather than adding them. Each removed feature had a simpler equivalent already in the language.
@@ -728,6 +755,7 @@ v-alpha-003 removes features rather than adding them. Each removed feature had a
 - **Added: `existing`** on slices (§12.1), for a slice that is already built. It is independent of `status`, so an existing slice can still need work. Added on 2026-10-06.
 - **Added: parts** (§3.2). A root file's `include` lists other files of the model, merged in order. E8 checks the paths and the parts. Added on 2026-10-06.
 - **Added: `userStory`** on slices (§12.1), for the user story behind the slice. Added on 2026-10-16.
+- **Added: `wireframe` on screen triggers and readers** (§12.5, §12.6), for an image of the screen as it looks in that slice. A relative `wireframe` path is relative to the file it is written in (§10.2). E5 covers a `wireframe` given with an automation or a system. Added on 2026-10-18.
 - **Migrating:** change `apiVersion` to `teml.org/v-alpha-003`, then:
   - replace every alias (`*Name`) with the element's name and delete the anchors;
   - rewrite merged view references as `- ViewName: [touched, props]`;

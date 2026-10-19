@@ -62,6 +62,8 @@ Fixes are welcome as pull requests. A change to the language starts with an issu
 
 ## History
 
+2026/10/18: Slices can give a screen its own `wireframe`, so a board can show each screen as it looks in that slice.
+
 2026/10/06: `v-alpha-003` adds parts: a root file's `include` lists the other files of a model.
 
 2026/10/04: Draft `v-alpha-003`: a smaller language. References are plain names (no YAML anchors or aliases), one name per type, one `events` list per slice, and `automations` that always work from a to-do view.
